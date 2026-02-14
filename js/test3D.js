@@ -1,7 +1,6 @@
 // ============================================
-// IMAGES DU CARROUSEL
-// Pour modifier le carrousel : ajoutez, supprimez ou réorganisez les noms de fichiers ci-dessous.
-// Chaque image correspond à un projet dans imageDescriptions (même index).
+// PORTFOLIO OPTIMISÉ AVEC LAZY LOADING
+// Version complète corrigée - Février 2026
 // ============================================
 
 // ============================================
@@ -13,17 +12,20 @@ let translations = {
     fr: {
         about_me: 'à propos de moi',
         copied: 'Copié !',
-        instagram: 'Instagram'
+        instagram: 'Instagram',
+        loading: 'Chargement...'
     },
     es: {
         about_me: 'acerca de mí',
         copied: '¡Copiado!',
-        instagram: 'Instagram'
+        instagram: 'Instagram',
+        loading: 'Cargando...'
     },
     en: {
         about_me: 'about me',
         copied: 'Copied!',
-        instagram: 'Instagram'
+        instagram: 'Instagram',
+        loading: 'Loading...'
     }
 };
 
@@ -32,6 +34,9 @@ function getText(key) {
     return translations[currentLanguage][key] || key;
 }
 
+// ============================================
+// FICHIERS DU CARROUSEL
+// ============================================
 let carouselFiles = [
     'persv_vid.mp4',
     'AFFICHE.jpg',
@@ -48,8 +53,79 @@ let carouselFiles = [
 ];
 
 // ============================================
+// ÉTAT DU LAZY LOADING
+// ============================================
+let carouselImgs = [];       // images chargées du carrousel
+let galleryImgMap = {};      // nom de fichier -> p5.Image (images de galerie)
+let loadingProgress = 0;
+let totalToLoad = 0;
+let isInitialLoadComplete = false;
+let priorityIndices = [];
+let loadQueue = [];
+
+// ============================================
+// VARIABLES GLOBALES
+// ============================================
+let cardsCount;
+let radius;
+let cardW = 220;
+let cardH = 130;
+let spacing = 14;
+let rot = 0;
+let targetRot = 0;
+let easing = 0.08;
+
+// Selected image for detail view
+let selectedImageIndex = null;
+let viewMode = "carousel";  // "carousel", "image_detail" or "about_me"
+let textOverlay; // 2D canvas overlay for text
+let detailScrollY = 0;
+let detailTargetScrollY = 0;
+let detailMaxScroll = 0;
+
+// Clickable areas
+let linkBounds = null;
+let aboutMeBounds = null;
+let instagramBounds = null;
+let languageButtons = [];
+let contactBounds = [];
+
+// Extensions vidéo supportées
+let videoExtensions = ['.mp4', '.webm', '.ogg'];
+
+// Nom CSS de la police
+let cssFontName = 'PersvFusion';
+
+// Smooth boost for animations
+let cardBoost = [];
+let galleryBoost = [];
+let mainImageBoost = 1.0;
+
+// Expanded gallery image
+let expandedGalleryImg = null;
+let expandedVideoFile = null;
+let galleryRects = [];
+let mainImageBounds = null;
+let closeButtonOverlay;
+
+// Screen bounds of the frontmost card
+let frontCardBounds = null;
+let frontCardIndex = -1;
+
+// Toast notification
+let toastMessage = '';
+let toastTimer = 0;
+
+// Hints
+let hints = [];
+let hintsInitialized = false;
+
+// Logo / signature image
+let signaImg;
+let Font;
+
+// ============================================
 // DESCRIPTIONS DES PROJETS
-// Chaque entrée correspond à une image du carrousel (même index).
 // ============================================
 let imageDescriptions = [
     {
@@ -160,12 +236,12 @@ let imageDescriptions = [
             es: "Micro campaña de concienciación sobre la importancia de la hidratación para Arkose (cadena de salas de escalada). Después de estudiar los lugares y realizar varios sondeos practicando escalada. La realización de una serie de carteles fue la mejor solución. La tipografía y elementos gráficos inspirados en el agua y las presas de escalada fueron diseñados especialmente para adaptarse perfectamente a la identidad del lugar y respetar el aspecto comunitario.",
             en: "Micro awareness campaign on the importance of hydration for Arkose (climbing gym chain). After studying the venues and conducting various surveys while climbing. Creating a series of posters was the best solution. The typography and graphic elements inspired by water and climbing holds were specially designed to fit perfectly with the venue's identity and respect the community aspect."
         },
-        gallery: ['hydro_aff_Page_1.jpg', 'hydro_aff_Page_2.jpg', 'hydro_aff_Page_3.jpg', 'hydro_aff_Page_4.jpg', 'hydro_aff_Page_5.jpg','filler.png','hydro_photo1.jpg', 'hydro_2.png','arkose_wall.jpg', ],
+        gallery: ['hydro_aff_Page_1.jpg', 'hydro_aff_Page_2.jpg', 'hydro_aff_Page_3.jpg', 'hydro_aff_Page_4.jpg', 'hydro_aff_Page_5.jpg','filler.png','hydro_photo1.jpg', 'hydro_2.png','arkose_wall.jpg'],
     },
 ];
 
 // ============================================
-// DESCRIPTION ABOUT ME
+// ABOUT ME CONTENT
 // ============================================
 let aboutMeContent = {
     titles: { fr: "À propos de moi", es: "Acerca de mí", en: "About Me" },
@@ -181,7 +257,10 @@ let aboutMeContent = {
     }
 };
 
-// Fonctions pour obtenir les descriptions traduits
+// ============================================
+// FONCTIONS HELPER
+// ============================================
+
 function getImageTitle(index) {
     if (index >= 0 && index < imageDescriptions.length) {
         return imageDescriptions[index].titles[currentLanguage] || imageDescriptions[index].titles['fr'];
@@ -201,129 +280,133 @@ function getImageLinkLabel(index) {
         return imageDescriptions[index].linkLabels[currentLanguage] || imageDescriptions[index].linkLabels['fr'];
     }
     return "";
-};
-
-let carouselImgs = [];       // images chargées du carrousel
-let galleryImgMap = {};      // nom de fichier -> p5.Image (images de galerie)
-let cardsCount;
-let radius;
-let cardW = 220;  // reduced from 300 for smaller matrix
-let cardH = 130;  // proportional reduction
-let spacing = 14;  // regular spacing between images
-let rot = 0;
-let targetRot = 0;
-let easing = 0.08;
-
-// Selected image for detail view
-let selectedImageIndex = null;
-let viewMode = "carousel";  // "carousel", "image_detail" or "about_me"
-let textOverlay; // 2D canvas overlay for text (avoids WEBGL texture/font conflicts)
-let detailScrollY = 0;
-let detailTargetScrollY = 0;
-let detailMaxScroll = 0;
-
-// Clickable link area (updated each frame)
-let linkBounds = null;
-
-// About Me click area
-let aboutMeBounds = null;
-
-// Instagram click area
-let instagramBounds = null;
-
-// Language buttons areas
-let languageButtons = [];
-
-// Extensions vidéo supportées
-let videoExtensions = ['.mp4', '.webm', '.ogg'];
-
-// Nom CSS de la police (enregistrée via @font-face dans setup)
-let cssFontName = 'PersvFusion';
-
-// Smooth boost for frontmost carousel card
-let cardBoost = [];
-
-// Smooth hover boost for gallery images
-let galleryBoost = [];
-
-// Smooth hover boost for main image in detail view
-let mainImageBoost = 1.0;
-
-// Expanded gallery image
-let expandedGalleryImg = null;
-let expandedVideoFile = null; // filename of video being played for sound
-let galleryRects = []; // stored each frame for click detection
-let mainImageBounds = null; // bounds of main image for click detection
-let closeButtonOverlay; // overlay for close button only
-
-// Screen bounds of the frontmost card (updated each frame)
-let frontCardBounds = null;
-let frontCardIndex = -1;
-
-// Contact click areas (phone & email)
-let contactBounds = [];
-
-// Toast notification
-let toastMessage = '';
-let toastTimer = 0;
-
-// Random positions for hint messages (multiple simultaneous hints)
-let hints = [];
-let hintsInitialized = false;
-
-// Logo / signature image
-let signaImg;
+}
 
 function isVideo(filename) {
     let lower = filename.toLowerCase();
     return videoExtensions.some(ext => lower.endsWith(ext));
 }
 
+function createPlaceholder(w, h) {
+    let pg = createGraphics(w, h);
+    pg.background(220);
+    pg.fill(180);
+    pg.noStroke();
+    pg.textAlign(CENTER, CENTER);
+    pg.textSize(14);
+    pg.text(getText('loading'), w/2, h/2);
+    return pg;
+}
 
-function preload(){
-    // Charger la police pour le préchargement (le fichier sera en cache)
-    Font = loadFont('polices/Persvrance-Fusion-Regular.otf');
-    // Charger l'image signature/logo
-    signaImg = loadImage('image/signa.png');
-    // Charger les images/vidéos du carrousel
-    for (let f of carouselFiles) {
-        if (isVideo(f)) {
-            // Les vidéos sont chargées dans setup() car createVideo n'est pas dispo dans preload
-            carouselImgs.push(null); // placeholder, remplacé dans setup
-        } else {
-            carouselImgs.push(loadImage('image/' + f));
+// ============================================
+// FONCTIONS DE LAZY LOADING
+// ============================================
+
+function loadCarouselImage(index) {
+    if (index < 0 || index >= carouselFiles.length) return;
+    
+    let filename = carouselFiles[index];
+    
+    if (isVideo(filename)) {
+        let vid = createVideo('image/' + filename);
+        vid.hide();
+        vid.loop();
+        vid.volume(0);
+        try {
+            if (vid.elt && vid.elt.play) {
+                vid.elt.play().catch(err => console.warn('Erreur vidéo:', filename));
+            }
+        } catch (e) {
+            console.warn('Cannot play video:', filename);
         }
+        carouselImgs[index] = vid;
+        loadingProgress++;
+    } else {
+        loadImage('image/' + filename, 
+            img => {
+                carouselImgs[index] = img;
+                loadingProgress++;
+            },
+            () => {
+                console.warn('Failed to load:', filename);
+                carouselImgs[index] = createPlaceholder(cardW, cardH);
+                loadingProgress++;
+            }
+        );
     }
-    // Charger les images de galerie (sans doublons)
-    let allGalleryFiles = new Set();
-    for (let desc of imageDescriptions) {
-        for (let f of desc.gallery) {
-            allGalleryFiles.add(f);
+}
+
+function loadGalleryImage(filename) {
+    if (galleryImgMap[filename]) return; // déjà chargé
+    
+    if (isVideo(filename)) {
+        let vid = createVideo('image/' + filename);
+        vid.hide();
+        vid.loop();
+        vid.volume(0);
+        try {
+            if (vid.elt && vid.elt.play) {
+                vid.elt.play().catch(err => console.warn('Erreur vidéo galerie:', filename));
+            }
+        } catch (e) {
+            console.warn('Cannot play gallery video:', filename);
         }
+        galleryImgMap[filename] = vid;
+    } else {
+        galleryImgMap[filename] = 'loading';
+        loadImage('image/' + filename,
+            img => {
+                galleryImgMap[filename] = img;
+            },
+            () => {
+                console.warn('Failed to load gallery:', filename);
+                galleryImgMap[filename] = createPlaceholder(200, 200);
+            }
+        );
     }
-    for (let f of allGalleryFiles) {
-        if (isVideo(f)) {
-            // vidéos de galerie seront chargées dans setup
-            galleryImgMap[f] = null; // placeholder pour les vidéos
-        } else {
-            galleryImgMap[f] = loadImage('image/' + f);
+}
+
+function loadGalleryForProject(projectIndex) {
+    let desc = imageDescriptions[projectIndex];
+    if (desc && desc.gallery) {
+        for (let filename of desc.gallery) {
+            if (!galleryImgMap[filename] || galleryImgMap[filename] === 'loading') {
+                loadGalleryImage(filename);
+            }
         }
     }
 }
 
+// ============================================
+// PRELOAD (Chargement minimal)
+// ============================================
+
+function preload() {
+    // Charger seulement les ressources essentielles
+    Font = loadFont('polices/Persvrance-Fusion-Regular.otf');
+    signaImg = loadImage('image/signa.png');
+    
+    // Initialiser les tableaux avec des placeholders
+    for (let i = 0; i < carouselFiles.length; i++) {
+        carouselImgs.push(createPlaceholder(cardW, cardH));
+    }
+}
+
+// ============================================
+// SETUP (Initialisation avec lazy loading)
+// ============================================
+
 function setup() {
     createCanvas(windowWidth, windowHeight, WEBGL);
-    textOverlay = createGraphics(windowWidth, windowHeight); // 2D overlay for text
+    textOverlay = createGraphics(windowWidth, windowHeight);
 
-    // Enregistrer la police via CSS @font-face pour utiliser le moteur natif du navigateur
-    // (p5 loadFont utilise opentype.js dont les metrics sont cassées pour cette police)
+    // Enregistrer la police CSS
     let style = document.createElement('style');
     style.textContent = "@font-face { font-family: 'PersvFusion'; src: url('polices/Persvrance-Fusion-Regular.otf') format('opentype'); }";
     document.head.appendChild(style);
-    // Forcer le chargement de la police CSS
     document.fonts.load('12px PersvFusion');
     
-    // Create close button overlay AFTER loading the font
+    // Create close button overlay
     closeButtonOverlay = createGraphics(windowWidth, windowHeight);
     closeButtonOverlay.fill(0);
     closeButtonOverlay.textSize(32);
@@ -333,67 +416,62 @@ function setup() {
     closeButtonOverlay.text('X', 45, 45);
 
     cardsCount = carouselFiles.length;
-
-    // Charger les vidéos du carrousel (createVideo doit être appelé après createCanvas)
-    for (let i = 0; i < carouselFiles.length; i++) {
-        if (isVideo(carouselFiles[i])) {
-            let vid = createVideo('image/' + carouselFiles[i]);
-            vid.hide();    // cacher l'élément HTML
-            vid.loop();    // lecture en boucle
-            vid.volume(0); // muet
-            
-            // Redémarrer la vidéo si elle est déjà en cours d'exécution
-            try {
-                if (vid.elt && vid.elt.play) {
-                    vid.elt.play().catch(err => console.warn('Erreur playback vidéo:', carouselFiles[i]));
-                }
-            } catch (e) {
-                console.warn('Cannot play video:', carouselFiles[i]);
-            }
-            
-            carouselImgs[i] = vid;
-        }
-    }
-    // Charger les vidéos de galerie
-    for (let desc of imageDescriptions) {
-        for (let f of desc.gallery) {
-            if (isVideo(f) && !galleryImgMap[f]) {
-                let vid = createVideo('image/' + f);
-                vid.hide();
-                vid.loop();
-                vid.volume(0);
-                
-                try {
-                    if (vid.elt && vid.elt.play) {
-                        vid.elt.play().catch(err => console.warn('Erreur playback vidéo galerie:', f));
-                    }
-                } catch (e) {
-                    console.warn('Cannot play gallery video:', f);
-                }
-                
-                galleryImgMap[f] = vid;
-            }
-        }
-    }
-
-    if (carouselImgs.length === 0) {
-        carouselImgs.push(createGraphics(200, 200));
-        carouselImgs[0].background(180);
-    }
-    // Calculate radius to maintain fixed spacing between image centers
     radius = (cardW + spacing) / (2 * sin(PI / cardsCount)) * 1.2;
     noStroke();
+    
+    // LAZY LOADING : charger d'abord les 4 premières images visibles
+    priorityIndices = [0, 1, 2, 3];
+    totalToLoad = carouselFiles.length;
+    
+    // Charger les images prioritaires immédiatement
+    for (let i of priorityIndices) {
+        if (i < carouselFiles.length) {
+            loadCarouselImage(i);
+        }
+    }
+    
+    // Créer une queue pour le reste
+    for (let i = 0; i < carouselFiles.length; i++) {
+        if (!priorityIndices.includes(i)) {
+            loadQueue.push(i);
+        }
+    }
+    
+    // Charger le reste progressivement (1 toutes les 150ms)
+    let loadIndex = 0;
+    let loadInterval = setInterval(() => {
+        if (loadIndex < loadQueue.length) {
+            loadCarouselImage(loadQueue[loadIndex]);
+            loadIndex++;
+        } else {
+            clearInterval(loadInterval);
+            isInitialLoadComplete = true;
+            console.log('✅ Tous les assets sont chargés');
+        }
+    }, 150);
 }
+
+// ============================================
+// DRAW (Boucle principale)
+// ============================================
 
 function draw() {
     if (viewMode === "carousel") {
         drawCarousel();
     } else if (viewMode === "image_detail") {
+        // Charger les images de galerie pour ce projet si pas encore fait
+        if (selectedImageIndex !== null) {
+            loadGalleryForProject(selectedImageIndex);
+        }
         drawImageDetail();
     } else if (viewMode === "about_me") {
         drawAboutMe();
     }
 }
+
+// ============================================
+// DRAW CAROUSEL
+// ============================================
 
 function drawCarousel() {
     background(255);
@@ -401,46 +479,43 @@ function drawCarousel() {
     // Assurer que les vidéos jouent correctement
     for (let i = 0; i < carouselImgs.length; i++) {
         let img = carouselImgs[i];
-        if (img && isVideo(carouselFiles[i])) {
+        if (img && img.elt && isVideo(carouselFiles[i])) {
             try {
-                if (img.elt && !img.elt.paused) {
-                    // vidéo pense qu'elle joue, tout va bien
-                } else if (img.elt) {
+                if (!img.elt.paused) {
+                    // vidéo joue
+                } else {
                     img.elt.play().catch(err => null);
                 }
             } catch (e) {
-                // ignorer les erreurs
+                // ignorer
             }
         }
     }
 
-    // Enhanced lighting for better image visibility
+    // Enhanced lighting
     ambientLight(220);
-    // Multiple point lights around the circle for even illumination
-    pointLight(220, 220, 220, 300, -200, 300);    // front-right
-    pointLight(220, 220, 220, -300, -200, 300);   // front-left
-    pointLight(200, 200, 200, 0, -200, -300);     // back
-    pointLight(200, 200, 180, 0, 200, 0);         // bottom
-    pointLight(255, 255, 255, 0, 0, 400);         // camera view light (front)
+    pointLight(220, 220, 220, 300, -200, 300);
+    pointLight(220, 220, 220, -300, -200, 300);
+    pointLight(200, 200, 200, 0, -200, -300);
+    pointLight(200, 200, 180, 0, 200, 0);
+    pointLight(255, 255, 255, 0, 0, 400);
   
     // auto-rotation
-    targetRot += 0.002; // slow automatic rotation
-
+    targetRot += 0.002;
     rot = lerp(rot, targetRot, easing);
 
-    // Center the circular matrix (slightly higher)
+    // Center the circular matrix
     push();
     translate(0, -80, 0);
     rotateX(-0.15);
 
     let step = TWO_PI / cardsCount;
 
-    // init boost array once
     if (cardBoost.length !== cardsCount) {
         cardBoost = new Array(cardsCount).fill(1);
     }
 
-    // find the frontmost image (highest z)
+    // find the frontmost image
     let maxZ = -Infinity;
     frontCardBounds = null;
     frontCardIndex = -1;
@@ -454,43 +529,35 @@ function drawCarousel() {
         let x = radius * sin(a);
         let z = radius * cos(a);
 
-        // smooth boost: target 1.3 for front, 1.0 for others
         let isFront = (z >= maxZ - 0.3);
         let targetBoost = isFront ? 1.4 : 1.0;
-        let speed = isFront ? 0.06 : 0.15; // shrink faster so next image takes over sooner
+        let speed = isFront ? 0.06 : 0.15;
         cardBoost[i] = lerp(cardBoost[i], targetBoost, speed);
 
         push();
         translate(x, 0, z);
-        // orient plane so its normal is radial (pointing outward from center)
         rotateY(a);
 
-        // depth-based scale for nicer perspective
         let depthScale = map(z, -radius, radius, 1.15, 0.65);
         depthScale *= cardBoost[i];
         scale(depthScale);
 
-        // choose image (repeat images if fewer than cardsCount)
         let img = carouselImgs[i % carouselImgs.length];
         
-        // Vérifier que l'image/vidéo est disponible
         if (!img || !img.width || !img.height) {
             pop();
-            continue; // passer cette carte si l'image n'est pas prête
+            continue;
         }
         
-        // Calculate proper dimensions to maintain aspect ratio
         let imgAspectRatio = img.width / img.height;
         let displayHeight = cardH;
         let displayWidth = displayHeight * imgAspectRatio;
         
-        // S'assurer que le fill est blanc et pas de stroke pour la texture
         fill(255);
         noStroke();
         texture(img);
         plane(displayWidth, displayHeight);
 
-        // Store info of the most boosted card for click detection
         if (cardBoost[i] > (frontCardBounds ? frontCardBounds.boost : 0)) {
             frontCardIndex = i;
             frontCardBounds = {
@@ -502,19 +569,16 @@ function drawCarousel() {
             };
         }
 
-        // thin frame
         noFill();
         stroke(255, 220);
         strokeWeight(2);
-        // draw a slightly bigger plane as frame using shape trick
-        // using a very thin box to simulate border
         translate(0, 0, 1);
         pop();
     }
 
     pop();
 
-    // HUD instructions via 2D overlay
+    // HUD via 2D overlay
     textOverlay.clear();
     textOverlay.textFont(cssFontName);
     
@@ -523,19 +587,19 @@ function drawCarousel() {
     let sigW = sigH * (signaImg.width / signaImg.height);
     textOverlay.image(signaImg, 20, 15, sigW, sigH);
     
-    // Display "about me" text to the right of signa image
+    // Display "about me" text
     textOverlay.fill(0);
     textOverlay.noStroke();
     textOverlay.textSize(12);
     textOverlay.textAlign(LEFT, TOP);
     let aboutMeText = getText('about_me');
     let aboutMeX = 20 + sigW + 15;
-    let aboutMeY = 4 + (sigH / 2) - 6; // center vertically with image
+    let aboutMeY = 4 + (sigH / 2) - 6;
     textOverlay.text(aboutMeText, aboutMeX, aboutMeY);
-    // Store about me bounds for click detection
     let aboutMeTw = textOverlay.textWidth(aboutMeText);
     aboutMeBounds = { x: aboutMeX, y: aboutMeY, w: aboutMeTw, h: 16, text: aboutMeText };
     
+    // Instagram
     textOverlay.textSize(12);
     textOverlay.textAlign(CENTER, TOP);
     let instagramText = getText('instagram');
@@ -543,6 +607,7 @@ function drawCarousel() {
     let instagramTw = textOverlay.textWidth(instagramText);
     instagramBounds = { x: width/2 - instagramTw/2, y: 20, w: instagramTw, h: 16, text: instagramText, url: 'https://www.instagram.com/jg_sutdio' };
     
+    // Contact info
     textOverlay.textSize(12);
     textOverlay.textAlign(RIGHT, TOP);
     let phoneText = '06.10.05.79.32';
@@ -550,7 +615,6 @@ function drawCarousel() {
     textOverlay.text(phoneText, width - 20, 20);
     textOverlay.text(emailText, width - 20, 40);
     
-    // Store contact bounds for click detection
     let phoneTw = textOverlay.textWidth(phoneText);
     let emailTw = textOverlay.textWidth(emailText);
     contactBounds = [
@@ -558,12 +622,11 @@ function drawCarousel() {
         { x: width - 20 - emailTw, y: 40, w: emailTw, h: 16, text: emailText }
     ];
     
-    // Hand cursor on hover over contacts
+    // Hover effects for contacts
     let overContact = false;
     for (let cb of contactBounds) {
         if (mouseX >= cb.x && mouseX <= cb.x + cb.w && mouseY >= cb.y && mouseY <= cb.y + cb.h) {
             overContact = true;
-            // Underline on hover
             textOverlay.stroke(0);
             textOverlay.strokeWeight(1);
             textOverlay.line(cb.x, cb.y + cb.h, cb.x + cb.w, cb.y + cb.h);
@@ -571,12 +634,11 @@ function drawCarousel() {
         }
     }
     
-    // Hand cursor on hover over Instagram
+    // Hover effect for Instagram
     let overInstagram = false;
     if (instagramBounds && mouseX >= instagramBounds.x && mouseX <= instagramBounds.x + instagramBounds.w && 
         mouseY >= instagramBounds.y && mouseY <= instagramBounds.y + instagramBounds.h) {
         overInstagram = true;
-        // Underline on hover
         textOverlay.stroke(0);
         textOverlay.strokeWeight(1);
         textOverlay.line(instagramBounds.x, instagramBounds.y + instagramBounds.h, 
@@ -584,12 +646,11 @@ function drawCarousel() {
         textOverlay.noStroke();
     }
     
-    // Hand cursor on hover over "about me"
+    // Hover effect for about me
     let overAboutMe = false;
     if (aboutMeBounds && mouseX >= aboutMeBounds.x && mouseX <= aboutMeBounds.x + aboutMeBounds.w && 
         mouseY >= aboutMeBounds.y && mouseY <= aboutMeBounds.y + aboutMeBounds.h) {
         overAboutMe = true;
-        // Underline on hover
         textOverlay.stroke(0);
         textOverlay.strokeWeight(1);
         textOverlay.line(aboutMeBounds.x, aboutMeBounds.y + aboutMeBounds.h, 
@@ -622,12 +683,10 @@ function drawCarousel() {
             label: languages[i]
         });
         
-        // Check hover
         let isHover = (mouseX >= btnX && mouseX <= btnX + langBtnSize && 
                       mouseY >= btnY && mouseY <= btnY + langBtnSize);
         if (isHover) overLanguage = true;
         
-        // Draw button
         textOverlay.noStroke();
         if (isActive) {
             textOverlay.fill(0);
@@ -638,7 +697,6 @@ function drawCarousel() {
         }
         textOverlay.rect(btnX, btnY, langBtnSize, langBtnSize, 4);
         
-        // Button text
         textOverlay.fill(isActive ? 255 : 0);
         textOverlay.textSize(11);
         textOverlay.textAlign(CENTER, CENTER);
@@ -664,65 +722,17 @@ function drawCarousel() {
         toastTimer--;
     }
     
-    // // Periodic hints: multiple "scroll" and "click" appearing simultaneously
-    // if (!hintsInitialized) {
-    //     // Two pairs: each pair has one "scroll" and one "click" that appear together
-    //     // Pair 1 and Pair 2 are offset so they alternate
-    //     let cx = width / 2, cy = height / 2 - 80;
-    //     let rx = width * 0.3, ry = height * 0.25;
-    //     hints.push({
-    //         label: 'scroll',
-    //         x: cx + random(-rx, rx), y: cy + random(-ry, ry),
-    //         offset: 0, period: 150
-    //     });
-    //     hints.push({
-    //         label: 'click',
-    //         x: cx + random(-rx, rx), y: cy + random(-ry, ry),
-    //         offset: 0, period: 150
-    //     });
-    //     hints.push({
-    //         label: 'scroll',
-    //         x: cx + random(-rx, rx), y: cy + random(-ry, ry),
-    //         offset: 75, period: 150
-    //     });
-    //     hints.push({
-    //         label: 'click',
-    //         x: cx + random(-rx, rx), y: cy + random(-ry, ry),
-    //         offset: 75, period: 150
-    //     });
-    //     hintsInitialized = true;
-    // }
-    for (let h of hints) {
-        let t = (frameCount + h.offset) % h.period;
-        let fadeIn = 12, hold = 30, fadeOut = 12;
-        let total = fadeIn + hold + fadeOut;
-        let alpha = 0;
-        if (t < fadeIn) alpha = map(t, 0, fadeIn, 0, 160);
-        else if (t < fadeIn + hold) alpha = 160;
-        else if (t < total) alpha = map(t, fadeIn + hold, total, 160, 0);
-        // regenerate position around carousel when cycle restarts
-        if (t === 0) {
-            let cx = width / 2, cy = height / 2 - 80;
-            let rx = width * 0.3, ry = height * 0.25;
-            h.x = cx + random(-rx, rx);
-            h.y = cy + random(-ry, ry);
-        }
-        if (alpha > 1) {
-            textOverlay.noStroke();
-            textOverlay.fill(0, alpha);
-            textOverlay.textSize(12);
-            textOverlay.textAlign(CENTER, CENTER);
-            textOverlay.text(h.label, h.x, h.y);
-        }
-    }
-    
-    // Display 2D overlay on top of 3D scene
+    // Display 2D overlay
     push();
     resetMatrix();
     noLights();
     image(textOverlay, -width/2, -height/2);
     pop();
 }
+
+// ============================================
+// DRAW IMAGE DETAIL
+// ============================================
 
 function drawImageDetail() {
     background(245);
@@ -734,7 +744,6 @@ function drawImageDetail() {
     let img = carouselImgs[selectedImageIndex];
     let desc = imageDescriptions[selectedImageIndex];
     
-    // Vérifier que l'image est disponible
     if (!img || !img.width || !img.height) {
         background(245);
         push();
@@ -744,7 +753,7 @@ function drawImageDetail() {
         textOverlay.fill(100);
         textOverlay.textSize(24);
         textOverlay.textAlign(CENTER, CENTER);
-        textOverlay.text('Image en cours de chargement...', width/2, height/2);
+        textOverlay.text(getText('loading'), width/2, height/2);
         image(textOverlay, -width/2, -height/2);
         pop();
         return;
@@ -752,11 +761,11 @@ function drawImageDetail() {
     
     // Layout constants
     let contentMargin = 60;
-    let textLeftWidth = width * 0.35; // left column for text
+    let textLeftWidth = width * 0.35;
     let mainImgMaxW = width - contentMargin * 2 - textLeftWidth - 40;
     let mainImgMaxH = height * 0.65;
     
-    // Main image dimensions (maintain aspect ratio)
+    // Main image dimensions
     let img_aspect = img.width / img.height;
     let mainImgW = mainImgMaxW;
     let mainImgH = mainImgW / img_aspect;
@@ -768,7 +777,7 @@ function drawImageDetail() {
     let mainImgX = width - contentMargin - mainImgW;
     let mainImgY = 90 + scrollOff;
     
-    // Draw main image in WEBGL with hover boost
+    // Draw main image with hover boost
     push();
     resetMatrix();
     noLights();
@@ -777,7 +786,6 @@ function drawImageDetail() {
     mainImageBoost = lerp(mainImageBoost, targetBoost, 0.12);
     let boost = mainImageBoost;
     
-    // Draw scaled from center
     let boostedW = mainImgW * boost;
     let boostedH = mainImgH * boost;
     let boostedX = mainImgX - (boostedW - mainImgW) / 2;
@@ -786,27 +794,26 @@ function drawImageDetail() {
     if (boostedY + boostedH > 0 && boostedY < height) {
         image(img, -width/2 + boostedX, -height/2 + boostedY, boostedW, boostedH);
     }
-    // Store bounds for click detection
     mainImageBounds = { x: boostedX, y: boostedY, w: boostedW, h: boostedH, img: img };
     pop();
     
-    // Gallery section: draw gallery images in WEBGL
+    // Gallery section
     let galleryTop = mainImgY + mainImgH + 40;
-    let galleryImgSize = (width - contentMargin * 2 - 20 * 2) / 3; // 3 columns with gaps
+    let galleryImgSize = (width - contentMargin * 2 - 20 * 2) / 3;
     let gallery = desc.gallery || [];
     
-    // Assurer que les vidéos de galerie jouent correctement
+    // Assurer que les vidéos de galerie jouent
     for (let f of gallery) {
         let gImg = galleryImgMap[f];
-        if (gImg && isVideo(f)) {
+        if (gImg && gImg.elt && isVideo(f)) {
             try {
-                if (gImg.elt && !gImg.elt.paused) {
-                    // vidéo pense qu'elle joue, tout va bien
-                } else if (gImg.elt) {
+                if (!gImg.elt.paused) {
+                    // ok
+                } else {
                     gImg.elt.play().catch(err => null);
                 }
             } catch (e) {
-                // ignorer les erreurs
+                // ignorer
             }
         }
     }
@@ -815,20 +822,20 @@ function drawImageDetail() {
     resetMatrix();
     noLights();
     let cursorY = galleryTop;
-    // init gallery boost array
+    
     if (galleryBoost.length !== gallery.length) {
         galleryBoost = new Array(gallery.length).fill(1);
     }
     galleryRects = [];
+    
     for (let row = 0; row < Math.ceil(gallery.length / 3); row++) {
         for (let col = 0; col < 3; col++) {
             let idx = row * 3 + col;
             if (idx >= gallery.length) break;
             let gImg = galleryImgMap[gallery[idx]];
             
-            // Vérifier que l'image est disponible
-            if (!gImg || !gImg.width || !gImg.height) {
-                continue; // passer cette image si elle n'est pas prête
+            if (!gImg || gImg === 'loading' || !gImg.width || !gImg.height) {
+                continue;
             }
             
             let gAspect = gImg.width / gImg.height;
@@ -841,16 +848,13 @@ function drawImageDetail() {
             let gX = contentMargin + col * (galleryImgSize + 20) + (galleryImgSize - gW) / 2;
             let gY = cursorY + (galleryImgSize - gH) / 2;
             
-            // Store rect for click detection
             galleryRects.push({ x: gX, y: gY, w: gW, h: gH, img: gImg });
             
-            // Check hover and apply smooth boost
             let isHover = (mouseX >= gX && mouseX <= gX + gW && mouseY >= gY && mouseY <= gY + gH);
             let targetB = isHover ? 1.08 : 1.0;
             galleryBoost[idx] = lerp(galleryBoost[idx], targetB, 0.12);
             let b = galleryBoost[idx];
             
-            // Draw scaled from center
             let bW = gW * b;
             let bH = gH * b;
             let bX = gX - (bW - gW) / 2;
@@ -864,17 +868,17 @@ function drawImageDetail() {
     }
     pop();
     
-    // Calculate total content height for scroll limits
+    // Calculate total content height for scroll
     let galleryRows = Math.ceil(gallery.length / 3);
     let galleryTotalH = galleryRows * (galleryImgSize + 20);
     let totalContentH = 90 + mainImgH + 40 + galleryTotalH + 40;
     detailMaxScroll = max(0, totalContentH - height);
     
-    // === ALL TEXT via 2D overlay ===
+    // TEXT via 2D overlay
     textOverlay.clear();
     textOverlay.textFont(cssFontName);
     
-    // Title next to image (right column)
+    // Title
     textOverlay.fill(0);
     textOverlay.noStroke();
     textOverlay.textSize(28);
@@ -882,12 +886,7 @@ function drawImageDetail() {
     textOverlay.textAlign(LEFT, TOP);
     textOverlay.text(getImageTitle(selectedImageIndex), textAreaX, mainImgY);
     
-    // // Separator line
-    // textOverlay.stroke(180);
-    // textOverlay.strokeWeight(1);
-    // textOverlay.line(textAreaX, mainImgY + 40, textAreaX + textLeftWidth - 20, mainImgY + 40);
-    
-    // Description text (right column, below title)
+    // Description
     textOverlay.noStroke();
     textOverlay.fill(0);
     textOverlay.textSize(14);
@@ -896,11 +895,10 @@ function drawImageDetail() {
     let descText = getImageText(selectedImageIndex);
     textOverlay.text(descText, textAreaX, mainImgY + 55, textLeftWidth - 20, 300);
     
-    // Clickable link (if defined)
+    // Clickable link
     linkBounds = null;
     if (desc.link) {
-        let linkY = mainImgY + 55 + 30; // below description text
-        // Estimate description height roughly
+        let linkY = mainImgY + 55 + 30;
         let descTextH = Math.ceil(descText.length / 30) * 20;
         linkY = mainImgY + 55 + descTextH + 10;
         let linkText = getImageLinkLabel(selectedImageIndex) || desc.link;
@@ -909,15 +907,13 @@ function drawImageDetail() {
         textOverlay.textStyle(BOLD);
         textOverlay.textAlign(LEFT, TOP);
         textOverlay.text(linkText, textAreaX, linkY);
-        // Underline
         let tw = textOverlay.textWidth(linkText);
         textOverlay.stroke(0);
         textOverlay.strokeWeight(1);
         textOverlay.line(textAreaX, linkY + 17, textAreaX + tw, linkY + 17);
         textOverlay.noStroke();
-        // Store link bounds for click detection
         linkBounds = { x: textAreaX, y: linkY, w: tw, h: 20, url: desc.link };
-        // Change cursor on hover
+        
         if (mouseX >= linkBounds.x && mouseX <= linkBounds.x + linkBounds.w &&
             mouseY >= linkBounds.y && mouseY <= linkBounds.y + linkBounds.h) {
             cursor(HAND);
@@ -928,44 +924,14 @@ function drawImageDetail() {
         cursor(ARROW);
     }
     
-    // Info section (aligned with bottom of image) - texte libre pour chaque image
-    textOverlay.fill(70);
-    textOverlay.textSize(12);
-    textOverlay.textStyle(NORMAL);
-    textOverlay.textAlign(LEFT, TOP);
-    if (desc.infoText) {
-        let infoHeight = 120;
-        textOverlay.text(desc.infoText, textAreaX, mainImgY + mainImgH - infoHeight, textLeftWidth - 20, infoHeight);
-    }
-    
-    // Gallery title
-    // textOverlay.fill(0);
-    // textOverlay.textSize(20);
-    // textOverlay.textStyle(BOLD);
-    // textOverlay.textAlign(LEFT, TOP);
-    // drawSpacedText(textOverlay, 'Galerie', contentMargin, galleryTop - 30);
-    
-    // Info below gallery — removed (now in right column)
-    
-    // Back button (fixed, does not scroll)
-    // textOverlay.fill(100, 150, 220);
-    // textOverlay.rect(20, 20, 50, 50, 5);
+    // Back button
     textOverlay.fill(0);
     textOverlay.textSize(32);
     textOverlay.textAlign(CENTER, CENTER);
     textOverlay.textStyle(NORMAL);
     textOverlay.text('X', 45, 45);
     
-    // Scroll indicator
-    // if (detailMaxScroll > 10) {
-    //     textOverlay.fill(180);
-    //     textOverlay.textSize(12);
-    //     textOverlay.textAlign(CENTER, TOP);
-    //     textOverlay.textStyle(NORMAL);
-    //     textOverlay.text('\u2193 Scroll pour voir plus \u2193', width / 2, height - 25);
-    // }
-    
-    // Display 2D overlay on top
+    // Display overlay
     if (!expandedGalleryImg) {
         push();
         resetMatrix();
@@ -979,12 +945,11 @@ function drawImageDetail() {
         push();
         resetMatrix();
         noLights();
-        // Dark overlay
         fill(0, 200);
         noStroke();
         rectMode(CORNER);
         rect(-width/2, -height/2, width, height);
-        // Draw image fitted to screen with margin
+        
         let margin = 60;
         let eAspect = expandedGalleryImg.width / expandedGalleryImg.height;
         let eW = width - margin * 2;
@@ -998,33 +963,25 @@ function drawImageDetail() {
         image(expandedGalleryImg, eX, eY, eW, eH);
         pop();
         
-        // Display only X button overlay on top of expanded image
         push();
         resetMatrix();
         noLights();
         image(closeButtonOverlay, -width/2, -height/2);
         pop();
     }
-    
-    // Handle back button click
-    if (mouseIsPressed && !expandedGalleryImg && mouseX > 20 && mouseX < 70 && mouseY > 20 && mouseY < 70) {
-        viewMode = "carousel";
-        selectedImageIndex = null;
-        detailScrollY = 0;
-        detailTargetScrollY = 0;
-    }
 }
 
+// ============================================
+// DRAW ABOUT ME
+// ============================================
 
 function drawAboutMe() {
     background(245);
     
-    // Layout constants
     let contentMargin = 80;
     let maxContentWidth = width - contentMargin * 2;
     let scrollOff = detailScrollY;
     
-    // === ALL TEXT via 2D overlay ===
     textOverlay.clear();
     textOverlay.textFont(cssFontName);
     
@@ -1036,77 +993,82 @@ function drawAboutMe() {
     textOverlay.textAlign(LEFT, TOP);
     textOverlay.text(aboutMeContent.titles[currentLanguage] || aboutMeContent.titles['fr'], contentMargin, 90 + scrollOff);
     
-    // Separator line
+    // Separator
     textOverlay.stroke(200);
     textOverlay.strokeWeight(2);
     textOverlay.line(contentMargin, 150 + scrollOff, contentMargin + 200, 150 + scrollOff);
     textOverlay.noStroke();
     
-    // Two column layout
-    let columnWidth = (maxContentWidth - 40) / 2; // 40px gap between columns
+    // Two columns
+    let columnWidth = (maxContentWidth - 40) / 2;
     let leftColumnX = contentMargin;
     let rightColumnX = contentMargin + columnWidth + 40;
     
-    // First paragraph - Left column
+    // Left column
     textOverlay.fill(0);
     textOverlay.textSize(16);
     textOverlay.textStyle(NORMAL);
     textOverlay.textAlign(LEFT, TOP);
     textOverlay.text(aboutMeContent.texts[currentLanguage] || aboutMeContent.texts['fr'], leftColumnX, 180 + scrollOff, columnWidth, 500);
     
-    // Second paragraph - Right column
+    // Right column
     textOverlay.fill(0);
     textOverlay.textSize(16);
     textOverlay.textStyle(NORMAL);
     textOverlay.textAlign(LEFT, TOP);
     textOverlay.text(aboutMeContent.bios[currentLanguage] || aboutMeContent.bios['fr'], rightColumnX, 180 + scrollOff, columnWidth, 500);
     
-    // Back button (fixed, does not scroll)
+    // Back button
     textOverlay.fill(0);
     textOverlay.textSize(32);
     textOverlay.textAlign(CENTER, CENTER);
     textOverlay.textStyle(NORMAL);
     textOverlay.text('X', 45, 45);
     
-    // Display 2D overlay on top
     push();
     resetMatrix();
     noLights();
     image(textOverlay, -width/2, -height/2);
     pop();
     
-    // Calculate total content height for scroll limits
     let totalContentH = 90 + 60 + 200 + 400;
     detailMaxScroll = max(0, totalContentH - height);
 }
 
+// ============================================
+// WINDOW RESIZED
+// ============================================
 
 function windowResized() {
     resizeCanvas(windowWidth, windowHeight);
     if (textOverlay) {
-        textOverlay.remove(); // libérer l'ancien canvas
+        textOverlay.remove();
     }
-    textOverlay = createGraphics(windowWidth, windowHeight); // recreate overlay
-    // Recalculate radius to maintain fixed spacing and fit on screen
-    radius = (cardW + spacing) / (2 * sin(PI / cardsCount)) * 1.0;
+    textOverlay = createGraphics(windowWidth, windowHeight);
+    radius = (cardW + spacing) / (2 * sin(PI / cardsCount)) * 1.2;
 }
+
+// ============================================
+// MOUSE WHEEL (Scroll)
+// ============================================
 
 function mouseWheel(event) {
     if (viewMode === "image_detail" || viewMode === "about_me") {
-        // Scroll the detail page vertically
         detailTargetScrollY -= event.delta * 1.2;
         detailTargetScrollY = constrain(detailTargetScrollY, -detailMaxScroll, 0);
     } else {
-        // Scroll controls rotation
         targetRot -= event.delta * 0.005;
     }
     return false;
 }
 
+// ============================================
+// MOUSE PRESSED (Clics)
+// ============================================
+
 function mousePressed() {
-    // Check if in about me view
+    // About me view
     if (viewMode === "about_me") {
-        // Back button (top left)
         if (mouseX > 20 && mouseX < 70 && mouseY > 20 && mouseY < 70) {
             viewMode = "carousel";
             detailScrollY = 0;
@@ -1116,11 +1078,10 @@ function mousePressed() {
         }
     }
     
-    // Check if in image detail view
+    // Image detail view
     if (viewMode === "image_detail") {
-        // Close expanded gallery image
+        // Close expanded image
         if (expandedGalleryImg) {
-            // Stop video if playing
             if (expandedVideoFile) {
                 let vid = carouselImgs[selectedImageIndex];
                 if (carouselFiles[selectedImageIndex] === expandedVideoFile && vid && vid.elt) {
@@ -1137,7 +1098,8 @@ function mousePressed() {
             expandedGalleryImg = null;
             return false;
         }
-        // Back button (top left) - using screen coordinates
+        
+        // Back button
         if (mouseX > 20 && mouseX < 70 && mouseY > 20 && mouseY < 70) {
             viewMode = "carousel";
             selectedImageIndex = null;
@@ -1146,35 +1108,36 @@ function mousePressed() {
             cursor(ARROW);
             return false;
         }
+        
         // Clickable link
         if (linkBounds && mouseX >= linkBounds.x && mouseX <= linkBounds.x + linkBounds.w &&
             mouseY >= linkBounds.y && mouseY <= linkBounds.y + linkBounds.h) {
             window.open(linkBounds.url, '_blank');
             return false;
         }
-        // Click on main image to expand
+        
+        // Click on main image
         if (mainImageBounds && mouseX >= mainImageBounds.x && mouseX <= mainImageBounds.x + mainImageBounds.w && 
             mouseY >= mainImageBounds.y && mouseY <= mainImageBounds.y + mainImageBounds.h) {
             expandedGalleryImg = mainImageBounds.img;
-            // Play video sound if applicable
             let videoFile = carouselFiles[selectedImageIndex];
             if (isVideo(videoFile)) {
                 expandedVideoFile = videoFile;
                 let vid = carouselImgs[selectedImageIndex];
                 if (vid && vid.elt) {
                     vid.elt.currentTime = 0;
-                    vid.elt.volume = 1; // Défini le volume à 100%
+                    vid.elt.volume = 1;
                     vid.elt.play().catch(err => console.warn('Erreur lecture vidéo:', err));
                 }
             }
             return false;
         }
-        // Click on gallery image to expand
+        
+        // Click on gallery image
         for (let r = 0; r < galleryRects.length; r++) {
             let gr = galleryRects[r];
             if (mouseX >= gr.x && mouseX <= gr.x + gr.w && mouseY >= gr.y && mouseY <= gr.y + gr.h) {
                 expandedGalleryImg = gr.img;
-                // Play video sound if applicable
                 let gallery = imageDescriptions[selectedImageIndex].gallery || [];
                 let galleryFile = gallery[r];
                 if (isVideo(galleryFile)) {
@@ -1182,7 +1145,7 @@ function mousePressed() {
                     let vid = galleryImgMap[galleryFile];
                     if (vid && vid.elt) {
                         vid.elt.currentTime = 0;
-                        vid.elt.volume = 1; // Défini le volume à 100%
+                        vid.elt.volume = 1;
                         vid.elt.play().catch(err => console.warn('Erreur lecture vidéo galerie:', err));
                     }
                 }
@@ -1191,22 +1154,24 @@ function mousePressed() {
         }
     }
     
-    // Check if click is on a carousel image
+    // Carousel view
     if (viewMode === "carousel") {
-        // Check language buttons click
+        // Language buttons
         for (let lb of languageButtons) {
             if (mouseX >= lb.x && mouseX <= lb.x + lb.w && mouseY >= lb.y && mouseY <= lb.y + lb.h) {
                 currentLanguage = lb.code;
                 return false;
             }
         }
-        // Check Instagram click
+        
+        // Instagram
         if (instagramBounds && mouseX >= instagramBounds.x && mouseX <= instagramBounds.x + instagramBounds.w &&
             mouseY >= instagramBounds.y && mouseY <= instagramBounds.y + instagramBounds.h) {
             window.open(instagramBounds.url, '_blank');
             return false;
         }
-        // Check about me click
+        
+        // About me
         if (aboutMeBounds && mouseX >= aboutMeBounds.x && mouseX <= aboutMeBounds.x + aboutMeBounds.w &&
             mouseY >= aboutMeBounds.y && mouseY <= aboutMeBounds.y + aboutMeBounds.h) {
             viewMode = "about_me";
@@ -1214,7 +1179,8 @@ function mousePressed() {
             detailTargetScrollY = 0;
             return false;
         }
-        // Check contact clicks (phone/email copy to clipboard)
+        
+        // Contacts (copy to clipboard)
         for (let cb of contactBounds) {
             if (mouseX >= cb.x && mouseX <= cb.x + cb.w && mouseY >= cb.y && mouseY <= cb.y + cb.h) {
                 navigator.clipboard.writeText(cb.text);
@@ -1223,14 +1189,13 @@ function mousePressed() {
                 return false;
             }
         }
+        
+        // Click on frontmost card
         if (frontCardBounds && frontCardIndex >= 0) {
-            // The front card is always near the horizontal center of the screen
-            // Use a generous rectangular hit area
             let s = frontCardBounds.depthScale;
             let hitW = (frontCardBounds.imgW * s) / 2 + 60;
             let hitH = (frontCardBounds.imgH * s) / 2 + 60;
             
-            // Screen center + worldX approximation (frontmost card has small x)
             let cx = width / 2 + frontCardBounds.worldX;
             let cy = height / 2 - 80;
             
