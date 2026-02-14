@@ -282,7 +282,7 @@ function isVideo(filename) {
 
 function preload(){
     // Charger la police pour le préchargement (le fichier sera en cache)
-    Font = loadFont('Polices/Persvrance-Fusion-Regular.otf');
+    Font = loadFont('polices/Persvrance-Fusion-Regular.otf');
     // Charger l'image signature/logo
     signaImg = loadImage('image/signa.png');
     // Charger les images/vidéos du carrousel
@@ -318,7 +318,7 @@ function setup() {
     // Enregistrer la police via CSS @font-face pour utiliser le moteur natif du navigateur
     // (p5 loadFont utilise opentype.js dont les metrics sont cassées pour cette police)
     let style = document.createElement('style');
-    style.textContent = "@font-face { font-family: 'PersvFusion'; src: url('Polices/Persvrance-Fusion-Regular.otf') format('opentype'); }";
+    style.textContent = "@font-face { font-family: 'PersvFusion'; src: url('polices/Persvrance-Fusion-Regular.otf') format('opentype'); }";
     document.head.appendChild(style);
     // Forcer le chargement de la police CSS
     document.fonts.load('12px PersvFusion');
