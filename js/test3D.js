@@ -1083,7 +1083,9 @@ function drawAboutMe() {
 
 function windowResized() {
     resizeCanvas(windowWidth, windowHeight);
-    textOverlay.remove(); // libérer l'ancien canvas
+    if (textOverlay) {
+        textOverlay.remove(); // libérer l'ancien canvas
+    }
     textOverlay = createGraphics(windowWidth, windowHeight); // recreate overlay
     // Recalculate radius to maintain fixed spacing and fit on screen
     radius = (cardW + spacing) / (2 * sin(PI / cardsCount)) * 1.0;
