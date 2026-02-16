@@ -1477,8 +1477,9 @@ function mousePressed() {
     let backBtnX = contentMargin;
     let backBtnY = contentMargin;
     
-    // Handle language buttons click (works on all platforms)
+    // ===== CAROUSEL VIEW =====
     if (viewMode === "carousel") {
+        // Check language buttons click
         for (let lb of languageButtons) {
             if (mouseX >= lb.x && mouseX <= lb.x + lb.w &&
                 mouseY >= lb.y && mouseY <= lb.y + lb.h) {
@@ -1506,142 +1507,6 @@ function mousePressed() {
             return false;
         }
         
-        // Continue with other checks...
-    }
-    
-    // Check if in about me view
-    if (viewMode === "about_me") {
-        // Back button (top left) - Larger touch target on mobile
-        if (mouseX > backBtnX - 12 && mouseX < backBtnX + backBtnSize + 12 && 
-            mouseY > backBtnY - 12 && mouseY < backBtnY + backBtnSize + 12) {
-            viewMode = "carousel";
-            detailScrollY = 0;
-            detailTargetScrollY = 0;
-            expandedGalleryImg = null; // Réinitialiser l'image agrandie
-            expandedVideoFile = null; // Réinitialiser la vidéo
-            selectedImageIndex = null;
-            cursor(ARROW);
-            return false;
-        }
-    }
-    
-    // Check if in image detail view
-    if (viewMode === "image_detail") {
-        // Back button click
-        if (mouseX > backBtnX - 12 && mouseX < backBtnX + backBtnSize + 12 && 
-            mouseY > backBtnY - 12 && mouseY < backBtnY + backBtnSize + 12) {
-            viewMode = "carousel";
-            selectedImageIndex = null;
-            detailScrollY = 0;
-            detailTargetScrollY = 0;
-            return false;
-        }
-    }
-    
-    return false;
-    
-    // Check if in image detail view
-    if (viewMode === "image_detail") {
-        // Close expanded gallery image
-        if (expandedGalleryImg) {
-            // Stop video if playing
-            if (expandedVideoFile) {
-                let vid = carouselImgs[selectedImageIndex];
-                if (carouselFiles[selectedImageIndex] === expandedVideoFile && vid && vid.elt) {
-                    vid.elt.pause();
-                }
-                let gallery = imageDescriptions[selectedImageIndex].gallery || [];
-                for (let f of gallery) {
-                    if (f === expandedVideoFile && galleryImgMap[f] && galleryImgMap[f].elt) {
-                        galleryImgMap[f].elt.pause();
-                    }
-                }
-                expandedVideoFile = null;
-            }
-            expandedGalleryImg = null;
-            return false;
-        }
-        // Back button (top left) - using adaptive coordinates
-        if (mouseX > backBtnX && mouseX < backBtnX + backBtnSize && mouseY > backBtnY && mouseY < backBtnY + backBtnSize) {
-            viewMode = "carousel";
-            selectedImageIndex = null;
-            detailScrollY = 0;
-            detailTargetScrollY = 0;
-            expandedGalleryImg = null; // Réinitialiser l'image agrandie
-            expandedVideoFile = null; // Réinitialiser la vidéo
-            cursor(ARROW);
-            return false;
-        }
-        // Clickable link
-        if (linkBounds && mouseX >= linkBounds.x && mouseX <= linkBounds.x + linkBounds.w &&
-            mouseY >= linkBounds.y && mouseY <= linkBounds.y + linkBounds.h) {
-            window.open(linkBounds.url, '_blank');
-            return false;
-        }
-        // Click on main image to expand (desktop only)
-        if (!isMobile && mainImageBounds && mouseX >= mainImageBounds.x && mouseX <= mainImageBounds.x + mainImageBounds.w && 
-            mouseY >= mainImageBounds.y && mouseY <= mainImageBounds.y + mainImageBounds.h) {
-            expandedGalleryImg = mainImageBounds.img;
-            // Play video sound if applicable
-            let videoFile = carouselFiles[selectedImageIndex];
-            if (isVideo(videoFile)) {
-                expandedVideoFile = videoFile;
-                let vid = carouselImgs[selectedImageIndex];
-                if (vid && vid.elt) {
-                    vid.elt.currentTime = 0;
-                    vid.elt.volume = 1; // Défini le volume à 100%
-                    vid.elt.play().catch(err => console.warn('Erreur lecture vidéo:', err));
-                }
-            }
-            return false;
-        }
-        // Click on gallery image to expand (desktop only)
-        if (!isMobile) {
-            for (let r = 0; r < galleryRects.length; r++) {
-                let gr = galleryRects[r];
-                if (mouseX >= gr.x && mouseX <= gr.x + gr.w && mouseY >= gr.y && mouseY <= gr.y + gr.h) {
-                    expandedGalleryImg = gr.img;
-                    // Play video sound if applicable
-                    let gallery = imageDescriptions[selectedImageIndex].gallery || [];
-                    let galleryFile = gallery[r];
-                    if (isVideo(galleryFile)) {
-                        expandedVideoFile = galleryFile;
-                        let vid = galleryImgMap[galleryFile];
-                        if (vid && vid.elt) {
-                            vid.elt.currentTime = 0;
-                            vid.elt.volume = 1; // Défini le volume à 100%
-                            vid.elt.play().catch(err => console.warn('Erreur lecture vidéo galerie:', err));
-                        }
-                    }
-                    return false;
-                }
-            }
-        }
-    }
-    
-    // Check if click is on a carousel image
-    if (viewMode === "carousel") {
-        // Check language buttons click
-        for (let lb of languageButtons) {
-            if (mouseX >= lb.x && mouseX <= lb.x + lb.w && mouseY >= lb.y && mouseY <= lb.y + lb.h) {
-                currentLanguage = lb.code;
-                return false;
-            }
-        }
-        // Check Instagram click
-        if (instagramBounds && mouseX >= instagramBounds.x && mouseX <= instagramBounds.x + instagramBounds.w &&
-            mouseY >= instagramBounds.y && mouseY <= instagramBounds.y + instagramBounds.h) {
-            window.open(instagramBounds.url, '_blank');
-            return false;
-        }
-        // Check about me click
-        if (aboutMeBounds && mouseX >= aboutMeBounds.x && mouseX <= aboutMeBounds.x + aboutMeBounds.w &&
-            mouseY >= aboutMeBounds.y && mouseY <= aboutMeBounds.y + aboutMeBounds.h) {
-            viewMode = "about_me";
-            detailScrollY = 0;
-            detailTargetScrollY = 0;
-            return false;
-        }
         // Check contact clicks (phone/email copy to clipboard)
         for (let cb of contactBounds) {
             if (mouseX >= cb.x && mouseX <= cb.x + cb.w && mouseY >= cb.y && mouseY <= cb.y + cb.h) {
@@ -1651,6 +1516,8 @@ function mousePressed() {
                 return false;
             }
         }
+        
+        // Check if click is on a carousel image (FRONTMOST CARD)
         if (frontCardBounds && frontCardIndex >= 0) {
             // The front card is always near the horizontal center of the screen
             // Use a generous rectangular hit area
@@ -1674,6 +1541,107 @@ function mousePressed() {
             }
         }
     }
+    
+    // ===== ABOUT ME VIEW =====
+    if (viewMode === "about_me") {
+        // Back button (top left) - Larger touch target on mobile
+        if (mouseX > backBtnX - 12 && mouseX < backBtnX + backBtnSize + 12 && 
+            mouseY > backBtnY - 12 && mouseY < backBtnY + backBtnSize + 12) {
+            viewMode = "carousel";
+            detailScrollY = 0;
+            detailTargetScrollY = 0;
+            expandedGalleryImg = null;
+            expandedVideoFile = null;
+            selectedImageIndex = null;
+            cursor(ARROW);
+            return false;
+        }
+    }
+    
+    // ===== IMAGE DETAIL VIEW =====
+    if (viewMode === "image_detail") {
+        // Close expanded gallery image
+        if (expandedGalleryImg) {
+            // Stop video if playing
+            if (expandedVideoFile) {
+                let vid = carouselImgs[selectedImageIndex];
+                if (carouselFiles[selectedImageIndex] === expandedVideoFile && vid && vid.elt) {
+                    vid.elt.pause();
+                }
+                let gallery = imageDescriptions[selectedImageIndex].gallery || [];
+                for (let f of gallery) {
+                    if (f === expandedVideoFile && galleryImgMap[f] && galleryImgMap[f].elt) {
+                        galleryImgMap[f].elt.pause();
+                    }
+                }
+                expandedVideoFile = null;
+            }
+            expandedGalleryImg = null;
+            return false;
+        }
+        
+        // Back button (top left)
+        if (mouseX > backBtnX - 12 && mouseX < backBtnX + backBtnSize + 12 && 
+            mouseY > backBtnY - 12 && mouseY < backBtnY + backBtnSize + 12) {
+            viewMode = "carousel";
+            selectedImageIndex = null;
+            detailScrollY = 0;
+            detailTargetScrollY = 0;
+            expandedGalleryImg = null;
+            expandedVideoFile = null;
+            cursor(ARROW);
+            return false;
+        }
+        
+        // Clickable link
+        if (linkBounds && mouseX >= linkBounds.x && mouseX <= linkBounds.x + linkBounds.w &&
+            mouseY >= linkBounds.y && mouseY <= linkBounds.y + linkBounds.h) {
+            window.open(linkBounds.url, '_blank');
+            return false;
+        }
+        
+        // Click on main image to expand (desktop only)
+        if (!isMobile && mainImageBounds && mouseX >= mainImageBounds.x && mouseX <= mainImageBounds.x + mainImageBounds.w && 
+            mouseY >= mainImageBounds.y && mouseY <= mainImageBounds.y + mainImageBounds.h) {
+            expandedGalleryImg = mainImageBounds.img;
+            // Play video sound if applicable
+            let videoFile = carouselFiles[selectedImageIndex];
+            if (isVideo(videoFile)) {
+                expandedVideoFile = videoFile;
+                let vid = carouselImgs[selectedImageIndex];
+                if (vid && vid.elt) {
+                    vid.elt.currentTime = 0;
+                    vid.elt.volume = 1;
+                    vid.elt.play().catch(err => console.warn('Erreur lecture vidéo:', err));
+                }
+            }
+            return false;
+        }
+        
+        // Click on gallery image to expand (desktop only)
+        if (!isMobile) {
+            for (let r = 0; r < galleryRects.length; r++) {
+                let gr = galleryRects[r];
+                if (mouseX >= gr.x && mouseX <= gr.x + gr.w && mouseY >= gr.y && mouseY <= gr.y + gr.h) {
+                    expandedGalleryImg = gr.img;
+                    // Play video sound if applicable
+                    let gallery = imageDescriptions[selectedImageIndex].gallery || [];
+                    let galleryFile = gallery[r];
+                    if (isVideo(galleryFile)) {
+                        expandedVideoFile = galleryFile;
+                        let vid = galleryImgMap[galleryFile];
+                        if (vid && vid.elt) {
+                            vid.elt.currentTime = 0;
+                            vid.elt.volume = 1;
+                            vid.elt.play().catch(err => console.warn('Erreur lecture vidéo galerie:', err));
+                        }
+                    }
+                    return false;
+                }
+            }
+        }
+    }
+    
     return false;
 }
 
