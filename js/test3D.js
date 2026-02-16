@@ -1461,8 +1461,6 @@ function mousePressed() {
                 viewMode = "image_detail";
                 detailScrollY = 0;
                 detailTargetScrollY = 0;
-                expandedGalleryImg = null; // Réinitialiser l'image agrandie
-                expandedVideoFile = null; // Réinitialiser la vidéo
                 return false;
             }
         }
