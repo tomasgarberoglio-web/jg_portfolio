@@ -298,6 +298,11 @@ let touchStartY = 0;
 let touchStartTime = 0;
 let isTouchDragging = false;
 
+function isVideo(filename) {
+    let lower = filename.toLowerCase();
+    return videoExtensions.some(ext => lower.endsWith(ext));
+}
+
 function calculateTextHeight(text, maxWidth, textSize) {
     // Estimer la hauteur du texte multiligne
     // Approximation: largeur moyenne de caractère ~ textSize * 0.5
@@ -1037,7 +1042,6 @@ function drawImageDetail() {
         textOverlay.textSize(14);
         textOverlay.textStyle(NORMAL);
         textOverlay.textAlign(LEFT, TOP);
-        let descText = getImageText(selectedImageIndex);
         textOverlay.text(descText, textAreaX, mainImgY + 55, textLeftWidth - 20, 300);
         
         // Clickable link (if defined)
