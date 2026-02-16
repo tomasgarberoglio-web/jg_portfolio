@@ -303,15 +303,47 @@ function isVideo(filename) {
     return videoExtensions.some(ext => lower.endsWith(ext));
 }
 
-function calculateTextHeight(text, maxWidth, textSize) {
-    // Estimer la hauteur du texte multiligne
-    // Approximation: largeur moyenne de caractère ~ textSize * 0.5
-    let avgCharWidth = textSize * 0.5;
-    let charsPerLine = Math.floor(maxWidth / avgCharWidth);
-    let numLines = Math.ceil(text.length / charsPerLine);
-    // Hauteur de ligne approximative
+function calculateTextHeight(text, maxWidth, textSize, canvasGraphics) {
+    // Mesurer la hauteur réelle du texte multiligne
+    // Divise le texte par retours à la ligne et enveloppe les longs paragraphes
+    if (!canvasGraphics) return 100; // fallback
+    
+    let lines = text.split('\n');
+    let totalLines = 0;
     let lineHeight = textSize * 1.5;
-    return numLines * lineHeight;
+    
+    for (let line of lines) {
+        // Mesurer la largeur de la ligne
+        let lineWidth = canvasGraphics.textWidth(line);
+        
+        if (lineWidth <= maxWidth) {
+            // La ligne entre dans max width
+            totalLines += 1;
+        } else {
+            // Envelopper la ligne en plusieurs sous-lignes
+            let words = line.split(' ');
+            let currentLine = '';
+            
+            for (let word of words) {
+                let testLine = currentLine ? currentLine + ' ' + word : word;
+                let testWidth = canvasGraphics.textWidth(testLine);
+                
+                if (testWidth > maxWidth && currentLine) {
+                    // Ligne actuelle est pleine, passer à la suivante
+                    totalLines += 1;
+                    currentLine = word;
+                } else {
+                    currentLine = testLine;
+                }
+            }
+            // Ajouter la dernière ligne
+            if (currentLine) {
+                totalLines += 1;
+            }
+        }
+    }
+    
+    return totalLines * lineHeight;
 }
 
 
@@ -833,8 +865,20 @@ function drawImageDetail() {
     // PRE-CALCULER LA HAUTEUR DU TEXTE POUR MOBILE
     let descTextHeight = 0;
     let descText = getImageText(selectedImageIndex);
+    let textLeftWidth = !isMobile ? width * 0.35 : 0;
+    
+    // Configurer temporairement textOverlay pour mesurer le texte
+    textOverlay.textFont(cssFontName);
+    
     if (isMobile) {
-        descTextHeight = calculateTextHeight(descText, width - contentMargin * 2, 12);
+        textOverlay.textSize(12);
+        textOverlay.textStyle(NORMAL);
+        descTextHeight = calculateTextHeight(descText, width - contentMargin * 2, 12, textOverlay);
+    } else {
+        // Desktop: mesurer la hauteur du texte sur deux colonnes
+        textOverlay.textSize(14);
+        textOverlay.textStyle(NORMAL);
+        descTextHeight = calculateTextHeight(descText, textLeftWidth - 20, 14, textOverlay);
     }
     
     // Variables pour tracker les positions dans le layout mobile
@@ -855,13 +899,25 @@ function drawImageDetail() {
         let textY = currentYMobile;
         currentYMobile += descTextHeight + 20;
         
+        // Link (if exists)
+        let linkHeight = desc.link ? 30 : 0;
+        currentYMobile += linkHeight + 10;
+        
         // Gallery
         galleryTop = currentYMobile;
     } else {
-        // Desktop layout
+        // Desktop layout: calculate gallery position based on longest column (image or text)
         mainImgX = width - contentMargin - mainImgW;
         mainImgY = 90 + scrollOff;
-        galleryTop = mainImgY + mainImgH + 40;
+        
+        // Text column height: title (40) + description height + link (30 if exists)
+        let textColumnHeight = 40 + descTextHeight + (desc.link ? 30 : 0) + 20;
+        
+        // Image column height: image position (90) + image height
+        let imageColumnHeight = mainImgY + mainImgH;
+        
+        // Gallery starts after the longest column
+        galleryTop = max(textColumnHeight + 60, imageColumnHeight + 40) + scrollOff;
     }
     
     // Draw main image in WEBGL with hover boost
@@ -970,14 +1026,19 @@ function drawImageDetail() {
     
     let totalContentH;
     if (imgPosition === "single_column") {
-        // Mobile: titre + image + texte + galerie
-        totalContentH = contentMargin + 50 + 50 + mainImgH + 20 + descTextHeight + 20 + galleryTotalH + 50;
+        // Mobile: titre + image + texte + lien + galerie
+        let linkHeight = desc.link ? 30 : 0;
+        totalContentH = contentMargin + 50 + 50 + mainImgH + 20 + descTextHeight + 20 + linkHeight + 10 + galleryTotalH + 50;
     } else if (imgPosition === "top") {
         // Ancien mode (si utilisé)
         totalContentH = contentMargin + mainImgH + 20 + galleryTotalH + 40 + 200 + 50;
     } else {
-        // Desktop
-        totalContentH = 90 + mainImgH + 40 + galleryTotalH + 40 + 200 + 50;
+        // Desktop: calculer basé sur la colonne la plus haute
+        let linkHeight = desc.link ? 30 : 0;
+        let textColumnH = 40 + descTextHeight + linkHeight + 20;
+        let imageColumnH = mainImgH;
+        let maxColumnH = max(textColumnH, imageColumnH);
+        totalContentH = 90 + maxColumnH + 40 + galleryTotalH + 50;
     }
     detailMaxScroll = max(0, totalContentH - height);
     
@@ -1047,8 +1108,7 @@ function drawImageDetail() {
         // Clickable link (if defined)
         linkBounds = null;
         if (desc.link) {
-            let descTextH = Math.ceil(descText.length / 30) * 20;
-            let linkY = mainImgY + 55 + descTextH + 10;
+            let linkY = mainImgY + 55 + descTextHeight + 10;
             let linkText = getImageLinkLabel(selectedImageIndex) || desc.link;
             textOverlay.fill(0);
             textOverlay.textSize(14);
