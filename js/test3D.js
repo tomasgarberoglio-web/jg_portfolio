@@ -1299,7 +1299,9 @@ function windowResized() {
 function mouseWheel(event) {
     if (viewMode === "image_detail" || viewMode === "about_me") {
         // Scroll the detail page vertically
-        detailTargetScrollY -= event.delta * 1.2;
+        // Augmenté pour mobile (sensibilité plus haute)
+        let scrollSpeed = isMobile ? 2.0 : 1.2;
+        detailTargetScrollY -= event.delta * scrollSpeed;
         detailTargetScrollY = constrain(detailTargetScrollY, -detailMaxScroll, 0);
     } else {
         // Scroll controls rotation
@@ -1479,8 +1481,20 @@ document.addEventListener('touchmove', function(event) {
         let deltaX = touchMoveX - touchStartX;
         let deltaY = touchMoveY - touchStartY;
         
-        // Si mouvement horizontal significatif, c'est un swipe
-        if (Math.abs(deltaX) > Math.abs(deltaY) && Math.abs(deltaX) > 30) {
+        // Vérifier si c'est un mouvement vertical (scroll pour pages de détail)
+        if (Math.abs(deltaY) > Math.abs(deltaX) && Math.abs(deltaY) > 15) {
+            // Scroll vertical sur les pages de détail
+            if (viewMode === "image_detail" || viewMode === "about_me") {
+                isTouchDragging = true;
+                detailTargetScrollY -= deltaY; // Slide gesture: finger moves down = scroll down (negative Y)
+                detailTargetScrollY = constrain(detailTargetScrollY, -detailMaxScroll, 0);
+                touchStartY = touchMoveY;
+                event.preventDefault(); // Empêcher le scroll navigateur
+                return false;
+            }
+        }
+        // Mouvement horizontal (swipe pour carrousel)
+        else if (Math.abs(deltaX) > Math.abs(deltaY) && Math.abs(deltaX) > 30) {
             isTouchDragging = true;
             // Swipe pour contrôler la rotation du carrousel
             if (viewMode === "carousel") {
@@ -1489,7 +1503,7 @@ document.addEventListener('touchmove', function(event) {
             touchStartX = touchMoveX;
         }
     }
-}, { passive: true });
+}, { passive: false }); // passive: false pour pouvoir arrêter le scroll du navigateur
 
 document.addEventListener('touchend', function(event) {
     if (isMobile || isTablet) {
