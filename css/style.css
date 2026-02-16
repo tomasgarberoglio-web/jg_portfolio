@@ -14,4 +14,143 @@ html, body {
     width: 100%;
     height: 100%;
     overflow: hidden;
+    box-sizing: border-box;
+    touch-action: none;
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', sans-serif;
+}
+
+* {
+    box-sizing: border-box;
+}
+
+/* Optimisation pour appareils tactiles */
+button, a, [role="button"], input {
+    -webkit-tap-highlight-color: transparent;
+    min-height: 44px;
+    min-width: 44px;
+}
+
+canvas {
+    display: block;
+    width: 100%;
+    height: 100%;
+    position: relative;
+}
+
+/* ============================================
+   MEDIA QUERIES RESPONSIVES
+   ============================================ */
+
+/* Tablettes - paysage et portrait */
+@media (max-width: 1024px) {
+    header {
+        flex-wrap: wrap;
+        font-size: 13px;
+    }
+}
+
+/* Tablettes et petits écrans */
+@media (max-width: 900px) {
+    body {
+        font-size: 14px;
+    }
+}
+
+/* Téléphones mobiles et petits appareils */
+@media (max-width: 768px) {
+    html, body {
+        font-size: 14px;
+    }
+    
+    header {
+        font-size: 12px;
+        padding: 8px;
+    }
+    
+    /* Prévenir le zoom automatique sur iOS */
+    input[type="text"],
+    input[type="email"],
+    input[type="tel"],
+    textarea,
+    select {
+        font-size: 16px;
+    }
+}
+
+/* Très petits appareils (< 480px) */
+@media (max-width: 480px) {
+    html, body {
+        font-size: 12px;
+    }
+    
+    header {
+        font-size: 10px;
+        padding: 4px;
+        border: 1px solid black;
+    }
+}
+
+/* Appareils ultra-petits (< 360px) */
+@media (max-width: 360px) {
+    html, body {
+        font-size: 11px;
+    }
+}
+
+/* Support du mode sombre */
+@media (prefers-color-scheme: dark) {
+    body {
+        background-color: #1a1a1a;
+        color: #ffffff;
+    }
+    
+    header {
+        border-color: #555;
+    }
+}
+
+/* Appareils tactiles (hover pas disponible) */
+@media (hover: none) and (pointer: coarse) {
+    a, button, [role="button"] {
+        cursor: pointer;
+        padding: 12px;
+    }
+    
+    /* Augmenter les zones cliquables sur mobile */
+    button {
+        min-height: 48px;
+        min-width: 48px;
+    }
+}
+
+/* Support de l'orientation portrait uniquement */
+@media (max-height: 500px) and (orientation: landscape) {
+    header {
+        padding: 4px;
+        font-size: 11px;
+    }
+}
+
+/* Notch support (Devices comme iPhone X) */
+@supports (padding: max(0px)) {
+    body {
+        padding-left: max(0px, env(safe-area-inset-left));
+        padding-right: max(0px, env(safe-area-inset-right));
+        padding-top: max(0px, env(safe-area-inset-top));
+        padding-bottom: max(0px, env(safe-area-inset-bottom));
+    }
+}
+
+/* Prefers reduced motion */
+@media (prefers-reduced-motion: reduce) {
+    * {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+    }
 }
