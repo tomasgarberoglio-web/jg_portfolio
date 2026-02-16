@@ -1493,7 +1493,7 @@ document.addEventListener('touchmove', function(event) {
             
             // Scroll vertical sur les pages de détail
             if (viewMode === "image_detail" || viewMode === "about_me") {
-                detailTargetScrollY += deltaY * 0.8; // Scroll avec sens correct du doigt
+                detailTargetScrollY += deltaY * 1.5; // Sensibilité augmentée pour mobile
                 detailTargetScrollY = constrain(detailTargetScrollY, -detailMaxScroll, 0);
                 touchStartY = touchMoveY; // Mettre à jour pour le prochain mouvement
             }
@@ -1517,9 +1517,17 @@ document.addEventListener('touchend', function(event) {
         
         // Si c'est un tap (pas un drag), traiter comme un clic
         if (!isTouchDragging && tapDuration < 300) {
-            // Simuler un mousePressed avec les coordonnées du touch
-            mouseX = event.changedTouches[0].clientX;
-            mouseY = event.changedTouches[0].clientY;
+            // Simuler un mousePressed avec les coordonnées du touch converties
+            // Récupérer la position du canvas et convertir les coordonnées
+            let canvas = document.querySelector('canvas');
+            if (canvas) {
+                let rect = canvas.getBoundingClientRect();
+                mouseX = event.changedTouches[0].clientX - rect.left;
+                mouseY = event.changedTouches[0].clientY - rect.top;
+            } else {
+                mouseX = event.changedTouches[0].clientX;
+                mouseY = event.changedTouches[0].clientY;
+            }
             mousePressed();
         }
         isTouchDragging = false;
