@@ -1493,7 +1493,7 @@ document.addEventListener('touchmove', function(event) {
             
             // Scroll vertical sur les pages de détail
             if (viewMode === "image_detail" || viewMode === "about_me") {
-                detailTargetScrollY -= deltaY * 0.8; // Scroll fluide
+                detailTargetScrollY += deltaY * 0.8; // Scroll avec sens correct du doigt
                 detailTargetScrollY = constrain(detailTargetScrollY, -detailMaxScroll, 0);
                 touchStartY = touchMoveY; // Mettre à jour pour le prochain mouvement
             }
