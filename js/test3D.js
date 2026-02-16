@@ -390,32 +390,56 @@ function preload(){
     }
 }
 
+// Flag global pour détecter les erreurs critiques
+let hasFatalError = false;
+
 function setup() {
-    // Optimiser pour les appareils mobiles
-    let w = windowWidth;
-    let h = windowHeight;
-    
-    // Détecter iOS spécifiquement
-    let isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
-    
-    // Sur mobile, réduire la qualité de rendu mais garder la performance
-    if (isMobile) {
-        try {
-            pixelDensity(1); // pixelDensity réduit pour mobile - meilleure performance iOS
-        } catch (e) {
-            console.warn('pixelDensity not supported');
+    try {
+        // Optimiser pour les appareils mobiles
+        let w = windowWidth;
+        let h = windowHeight;
+        
+        // Détecter iOS spécifiquement
+        let isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+        
+        // Sur mobile, réduire la qualité de rendu mais garder la performance
+        if (isMobile) {
+            try {
+                pixelDensity(1); // pixelDensity réduit pour mobile - meilleure performance iOS
+            } catch (e) {
+                console.warn('pixelDensity not supported');
+            }
         }
-    }
-    
-    createCanvas(w, h, WEBGL);
-    textOverlay = createGraphics(w, h); // 2D overlay for text
-    
-    // Sur iOS, prévenir le zoom et les gestes par défaut
-    if (isIOS) {
-        document.body.style.zoom = 1;
-        document.body.style.overscrollBehavior = 'none';
-        document.documentElement.style.webkitUserSelectAll = 'none';
-        document.documentElement.style.webkitTouchCallout = 'none';
+        
+        // Créer le canvas avec WEBGL, fallback en 2D si problème
+        try {
+            createCanvas(w, h, WEBGL);
+        } catch (webglError) {
+            console.warn('WEBGL not supported, falling back to 2D', webglError);
+            createCanvas(w, h);
+        }
+        
+        textOverlay = createGraphics(w, h); // 2D overlay for text
+        
+        // Sur iOS, appliquer les styles de prévention minimaux
+        if (isIOS) {
+            document.documentElement.style.overscrollBehavior = 'none';
+            // Éviter le zoom sur double-tap
+            document.addEventListener('touchmove', function(e) {
+                if (e.touches.length > 1) {
+                    e.preventDefault();
+                }
+            }, { passive: false });
+        }
+    } catch (error) {
+        hasFatalError = true;
+        console.error('Fatal error in setup:', error);
+        background(255);
+        fill(0);
+        textSize(14);
+        textAlign(LEFT);
+        text('Erreur: ' + error.message, 20, 20);
+        return;
     }
 
     // Enregistrer la police via CSS @font-face pour utiliser le moteur natif du navigateur
@@ -437,81 +461,93 @@ function setup() {
 
     cardsCount = carouselFiles.length;
 
-    // Ajouter un event listener au canvas pour débloquer autoplay vidéo sur iOS au premier clic
-    let canvas = document.querySelector('canvas');
-    if (canvas && (isMobile || /iPad|iPhone|iPod/.test(navigator.userAgent))) {
-        canvas.addEventListener('click', function unlockVideos() {
+    // Ajouter une protection pour débloquer autoplay vidéo sur iOS - être très prudent pour éviter les boucles infinies
+    if (isMobile && /iPad|iPhone|iPod/.test(navigator.userAgent)) {
+        // Use document listener to avoid canvas conflicts
+        document.addEventListener('click', function unlockVideosOnce() {
             if (!userInteracted) {
                 userInteracted = true;
                 console.log('Videos unlocked after user interaction');
+                // Remove listener after first use
+                document.removeEventListener('click', unlockVideosOnce);
             }
-        }, { once: false });
+        }, { once: true });
     }
 
     // Charger les vidéos du carrousel (createVideo doit être appelé après createCanvas)
     for (let i = 0; i < carouselFiles.length; i++) {
         if (isVideo(carouselFiles[i])) {
-            let vid = createVideo('image/' + carouselFiles[i]);
-            vid.hide();    // cacher l'élément HTML
-            vid.loop();    // lecture en boucle
-            vid.volume(0); // muet
-            
-            // Ajouter muted attribute pour iOS autoplay (IMPORTANT)
-            if (vid.elt) {
-                vid.elt.muted = true;
-                vid.elt.playsInline = true;  // Pour iOS - permet lecture inline sans fullscreen
-                vid.elt.setAttribute('playsinline', 'true');
-                vid.elt.setAttribute('muted', 'true');
-                vid.elt.setAttribute('autoplay', 'autoplay');
+            try {
+                let vid = createVideo('image/' + carouselFiles[i]);
+                vid.hide();    // cacher l'élément HTML
+                vid.loop();    // lecture en boucle
+                vid.volume(0); // muet
                 
-                // Essayer de jouer après user interaction ou délai court
-                try {
-                    let playPromise = vid.elt.play();
-                    if (playPromise !== undefined) {
-                        playPromise.catch(err => {
-                            console.warn('Autoplay bloqué sur iOS pour:', carouselFiles[i], '- attente interaction utilisateur');
-                        });
+                // Ajouter muted attribute pour iOS autoplay (IMPORTANT)
+                if (vid && vid.elt) {
+                    vid.elt.muted = true;
+                    vid.elt.playsInline = true;  // Pour iOS - permet lecture inline sans fullscreen
+                    vid.elt.setAttribute('playsinline', 'true');
+                    vid.elt.setAttribute('muted', 'true');
+                    vid.elt.setAttribute('autoplay', 'autoplay');
+                    
+                    // Essayer de jouer après user interaction ou délai court
+                    try {
+                        let playPromise = vid.elt.play();
+                        if (playPromise !== undefined) {
+                            playPromise.catch(err => {
+                                console.debug('Autoplay blocked on iOS');
+                            });
+                        }
+                    } catch (e) {
+                        console.debug('Cannot autoplay video');
                     }
-                } catch (e) {
-                    console.warn('Cannot autoplay video:', carouselFiles[i]);
                 }
+                
+                carouselImgs[i] = vid;
+            } catch (error) {
+                console.warn('Failed to load carousel video:', carouselFiles[i], error);
+                carouselImgs[i] = null; // Fallback à null pour éviter crash
             }
-            
-            carouselImgs[i] = vid;
         }
     }
     // Charger les vidéos de galerie
     for (let desc of imageDescriptions) {
         for (let f of desc.gallery) {
             if (isVideo(f) && !galleryImgMap[f]) {
-                let vid = createVideo('image/' + f);
-                vid.hide();
-                vid.loop();
-                vid.volume(0);
-                
-                // Ajouter muted attribute et playsInline pour iOS
-                if (vid.elt) {
-                    vid.elt.muted = true;
-                    vid.elt.playsInline = true;
-                    vid.elt.setAttribute('playsinline', 'true');
-                    vid.elt.setAttribute('muted', 'true');
+                try {
+                    let vid = createVideo('image/' + f);
+                    vid.hide();
+                    vid.loop();
+                    vid.volume(0);
                     
-                    // Essayer de jouer après user interaction
-                    if (userInteracted) {
-                        try {
-                            let playPromise = vid.elt.play();
-                            if (playPromise !== undefined) {
-                                playPromise.catch(err => {
-                                    console.debug('Gallery video play after interaction');
-                                });
+                    // Ajouter muted attribute et playsInline pour iOS
+                    if (vid && vid.elt) {
+                        vid.elt.muted = true;
+                        vid.elt.playsInline = true;
+                        vid.elt.setAttribute('playsinline', 'true');
+                        vid.elt.setAttribute('muted', 'true');
+                        
+                        // Essayer de jouer après user interaction
+                        if (userInteracted) {
+                            try {
+                                let playPromise = vid.elt.play();
+                                if (playPromise !== undefined) {
+                                    playPromise.catch(err => {
+                                        console.debug('Gallery video play after interaction');
+                                    });
+                                }
+                            } catch (e) {
+                                console.debug('Cannot play gallery video');
                             }
-                        } catch (e) {
-                            console.warn('Cannot play gallery video:', f);
                         }
                     }
+                    
+                    galleryImgMap[f] = vid;
+                } catch (error) {
+                    console.warn('Failed to load gallery video:', f, error);
+                    galleryImgMap[f] = null; // Fallback to null
                 }
-                
-                galleryImgMap[f] = vid;
             }
         }
     }
@@ -556,14 +592,18 @@ function drawCarousel() {
         }
     }
 
-    // Enhanced lighting for better image visibility
-    ambientLight(220);
-    // Multiple point lights around the circle for even illumination
-    pointLight(220, 220, 220, 300, -200, 300);    // front-right
-    pointLight(220, 220, 220, -300, -200, 300);   // front-left
-    pointLight(200, 200, 200, 0, -200, -300);     // back
-    pointLight(200, 200, 180, 0, 200, 0);         // bottom
-    pointLight(255, 255, 255, 0, 0, 400);         // camera view light (front)
+    // Enhanced lighting for better image visibility (avec protection erreur WEBGL)
+    try {
+        ambientLight(220);
+        // Multiple point lights around the circle for even illumination
+        pointLight(220, 220, 220, 300, -200, 300);    // front-right
+        pointLight(220, 220, 220, -300, -200, 300);   // front-left
+        pointLight(200, 200, 200, 0, -200, -300);     // back
+        pointLight(200, 200, 180, 0, 200, 0);         // bottom
+        pointLight(255, 255, 255, 0, 0, 400);         // camera view light (front)
+    } catch (e) {
+        // WEBGL lighting non supporté, continuer sans
+    }
   
     // auto-rotation
     targetRot += 0.002; // slow automatic rotation
@@ -571,9 +611,14 @@ function drawCarousel() {
     rot = lerp(rot, targetRot, easing);
 
     // Center the circular matrix (slightly higher)
-    push();
-    translate(0, -80, 0);
-    rotateX(-0.15);
+    try {
+        push();
+        translate(0, -80, 0);
+        rotateX(-0.15);
+    } catch (e) {
+        // Peut échouer sur certains renderers, continuer
+        push();
+    }
 
     let step = TWO_PI / cardsCount;
 
@@ -894,11 +939,15 @@ function drawCarousel() {
     }
     
     // Display 2D overlay on top of 3D scene
-    push();
-    resetMatrix();
-    noLights();
-    image(textOverlay, -width/2, -height/2);
-    pop();
+    try {
+        push();
+        resetMatrix();
+        if (typeof noLights === 'function') noLights();
+        image(textOverlay, -width/2, -height/2);
+        pop();
+    } catch (e) {
+        console.debug('Could not display overlay:', e.message);
+    }
 }
 
 function drawImageDetail() {
@@ -1372,16 +1421,23 @@ function drawAboutMe() {
 
 
 function windowResized() {
-    resizeCanvas(windowWidth, windowHeight);
-    if (textOverlay) {
-        textOverlay.remove(); // libérer l'ancien canvas
-    }
-    textOverlay = createGraphics(windowWidth, windowHeight); // recreate overlay
-    // Recalculate radius to maintain fixed spacing and fit on screen
-    radius = (cardW + spacing) / (2 * sin(PI / cardsCount)) * 1.0;
+    if (hasFatalError) return; // Ne pas continuer si erreur fatale
     
-    // Re-detect device size on window resize
-    detectDevice();
+    try {
+        resizeCanvas(windowWidth, windowHeight);
+        if (textOverlay) {
+            textOverlay.remove(); // libérer l'ancien canvas
+        }
+        textOverlay = createGraphics(windowWidth, windowHeight); // recreate overlay
+        // Recalculate radius to maintain fixed spacing and fit on screen
+        radius = (cardW + spacing) / (2 * sin(PI / cardsCount)) * 1.0;
+        
+        // Re-detect device size on window resize
+        detectDevice();
+    } catch (error) {
+        console.error('Error in windowResized:', error);
+        // Ne pas crash l'app, continuer avec les valeurs actuelles
+    }
 }
 
 function mouseWheel(event) {
