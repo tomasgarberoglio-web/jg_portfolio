@@ -392,6 +392,8 @@ function preload(){
 
 // Flag global pour détecter les erreurs critiques
 let hasFatalError = false;
+// Détection iOS globale
+let isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
 
 function setup() {
     try {
@@ -399,24 +401,23 @@ function setup() {
         let w = windowWidth;
         let h = windowHeight;
         
-        // Détecter iOS spécifiquement
-        let isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
-        
-        // Sur mobile, réduire la qualité de rendu mais garder la performance
-        if (isMobile) {
-            try {
-                pixelDensity(1); // pixelDensity réduit pour mobile - meilleure performance iOS
-            } catch (e) {
-                console.warn('pixelDensity not supported');
-            }
-        }
-        
-        // Créer le canvas avec WEBGL, fallback en 2D si problème
-        try {
-            createCanvas(w, h, WEBGL);
-        } catch (webglError) {
-            console.warn('WEBGL not supported, falling back to 2D', webglError);
+        // === FORCE 2D RENDERING ON iOS - WEBGL causes recursion errors on Safari ===
+        if (isIOS) {
+            // iOS: Use 2D canvas ONLY - WEBGL will crash with "recursive error"
             createCanvas(w, h);
+            console.log('Created 2D canvas for iOS');
+        } else if (isMobile) {
+            // Android: Try WEBGL with fallback
+            try {
+                pixelDensity(1);
+                createCanvas(w, h, WEBGL);
+            } catch (e) {
+                console.warn('WEBGL failed, using 2D');
+                createCanvas(w, h);
+            }
+        } else {
+            // Desktop: Use WEBGL
+            createCanvas(w, h, WEBGL);
         }
         
         textOverlay = createGraphics(w, h); // 2D overlay for text
@@ -424,12 +425,6 @@ function setup() {
         // Sur iOS, appliquer les styles de prévention minimaux
         if (isIOS) {
             document.documentElement.style.overscrollBehavior = 'none';
-            // Éviter le zoom sur double-tap
-            document.addEventListener('touchmove', function(e) {
-                if (e.touches.length > 1) {
-                    e.preventDefault();
-                }
-            }, { passive: false });
         }
     } catch (error) {
         hasFatalError = true;
@@ -562,12 +557,33 @@ function setup() {
 }
 
 function draw() {
-    if (viewMode === "carousel") {
-        drawCarousel();
-    } else if (viewMode === "image_detail") {
-        drawImageDetail();
-    } else if (viewMode === "about_me") {
-        drawAboutMe();
+    if (hasFatalError) {
+        return; // Arrêter si erreur fatale
+    }
+    
+    try {
+        // iOS: Always use 2D rendering to avoid WEBGL bugs
+        if (isIOS) {
+            if (viewMode === "carousel") {
+                drawCarousel2D();
+            } else if (viewMode === "image_detail") {
+                drawImageDetail2D();
+            } else if (viewMode === "about_me") {
+                drawAboutMe2D();
+            }
+        } else {
+            // Desktop/Android: Use 3D rendering
+            if (viewMode === "carousel") {
+                drawCarousel();
+            } else if (viewMode === "image_detail") {
+                drawImageDetail();
+            } else if (viewMode === "about_me") {
+                drawAboutMe();
+            }
+        }
+    } catch (error) {
+        console.error('Fatal error in draw:', error);
+        hasFatalError = true;
     }
 }
 
@@ -1461,6 +1477,38 @@ function mousePressed() {
     let backBtnX = contentMargin;
     let backBtnY = contentMargin;
     
+    // Handle language buttons click (works on all platforms)
+    if (viewMode === "carousel") {
+        for (let lb of languageButtons) {
+            if (mouseX >= lb.x && mouseX <= lb.x + lb.w &&
+                mouseY >= lb.y && mouseY <= lb.y + lb.h) {
+                currentLanguage = lb.code;
+                detailScrollY = 0;
+                detailTargetScrollY = 0;
+                return false;
+            }
+        }
+        
+        // Check about me click
+        if (aboutMeBounds && mouseX >= aboutMeBounds.x && mouseX <= aboutMeBounds.x + aboutMeBounds.w &&
+            mouseY >= aboutMeBounds.y && mouseY <= aboutMeBounds.y + aboutMeBounds.h) {
+            viewMode = "about_me";
+            detailScrollY = 0;
+            detailTargetScrollY = 0;
+            selectedImageIndex = null;
+            return false;
+        }
+        
+        // Check Instagram click
+        if (instagramBounds && mouseX >= instagramBounds.x && mouseX <= instagramBounds.x + instagramBounds.w &&
+            mouseY >= instagramBounds.y && mouseY <= instagramBounds.y + instagramBounds.h) {
+            window.open(instagramBounds.url, '_blank');
+            return false;
+        }
+        
+        // Continue with other checks...
+    }
+    
     // Check if in about me view
     if (viewMode === "about_me") {
         // Back button (top left) - Larger touch target on mobile
@@ -1476,6 +1524,21 @@ function mousePressed() {
             return false;
         }
     }
+    
+    // Check if in image detail view
+    if (viewMode === "image_detail") {
+        // Back button click
+        if (mouseX > backBtnX - 12 && mouseX < backBtnX + backBtnSize + 12 && 
+            mouseY > backBtnY - 12 && mouseY < backBtnY + backBtnSize + 12) {
+            viewMode = "carousel";
+            selectedImageIndex = null;
+            detailScrollY = 0;
+            detailTargetScrollY = 0;
+            return false;
+        }
+    }
+    
+    return false;
     
     // Check if in image detail view
     if (viewMode === "image_detail") {
