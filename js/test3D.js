@@ -304,46 +304,56 @@ function isVideo(filename) {
 }
 
 function calculateTextHeight(text, maxWidth, textSize, canvasGraphics) {
-    // Mesurer la hauteur réelle du texte multiligne
-    // Divise le texte par retours à la ligne et enveloppe les longs paragraphes
+    // Mesurer la hauteur réelle du texte multiligne avec plus de précision
     if (!canvasGraphics) return 100; // fallback
     
     let lines = text.split('\n');
     let totalLines = 0;
     let lineHeight = textSize * 1.5;
     
-    for (let line of lines) {
-        // Mesurer la largeur de la ligne
-        let lineWidth = canvasGraphics.textWidth(line);
-        
-        if (lineWidth <= maxWidth) {
-            // La ligne entre dans max width
+    for (let paragraph of lines) {
+        if (paragraph.trim() === '') {
+            // Ligne vide compte comme une ligne complète
             totalLines += 1;
-        } else {
-            // Envelopper la ligne en plusieurs sous-lignes
-            let words = line.split(' ');
-            let currentLine = '';
+            continue;
+        }
+        
+        // Envelopper la ligne avec détection de mots
+        let words = paragraph.split(' ');
+        let currentLine = '';
+        
+        for (let i = 0; i < words.length; i++) {
+            let word = words[i];
+            if (!word) continue; // Ignorer les espaces multiples
             
-            for (let word of words) {
-                let testLine = currentLine ? currentLine + ' ' + word : word;
-                let testWidth = canvasGraphics.textWidth(testLine);
-                
-                if (testWidth > maxWidth && currentLine) {
-                    // Ligne actuelle est pleine, passer à la suivante
+            let testLine = currentLine ? currentLine + ' ' + word : word;
+            let testWidth = canvasGraphics.textWidth(testLine);
+            
+            if (testWidth <= maxWidth) {
+                // Le mot rentre dans la ligne actuelle
+                currentLine = testLine;
+            } else {
+                // Le mot ne rentre pas
+                if (currentLine) {
+                    // Sauvegarder la ligne actuelle et commencer une nouvelle
                     totalLines += 1;
                     currentLine = word;
                 } else {
-                    currentLine = testLine;
+                    // Mot trop long même seul, le forcer quand même (rare)
+                    totalLines += 1;
+                    currentLine = '';
                 }
             }
-            // Ajouter la dernière ligne
-            if (currentLine) {
-                totalLines += 1;
-            }
+        }
+        
+        // Ajouter la dernière ligne du paragraphe
+        if (currentLine) {
+            totalLines += 1;
         }
     }
     
-    return totalLines * lineHeight;
+    // Retourner la hauteur avec un padding de sécurité
+    return totalLines * lineHeight + 10;
 }
 
 
@@ -897,11 +907,11 @@ function drawImageDetail() {
         
         // Text section
         let textY = currentYMobile;
-        currentYMobile += descTextHeight + 20;
+        currentYMobile += descTextHeight + 40; // +40 pour padding de sécurité
         
         // Link (if exists)
         let linkHeight = desc.link ? 30 : 0;
-        currentYMobile += linkHeight + 10;
+        currentYMobile += linkHeight + 15; // +15 pour padding de sécurité
         
         // Gallery
         galleryTop = currentYMobile;
@@ -1026,9 +1036,9 @@ function drawImageDetail() {
     
     let totalContentH;
     if (imgPosition === "single_column") {
-        // Mobile: titre + image + texte + lien + galerie
+        // Mobile: titre + image + texte + lien + galerie (avec padding de sécurité)
         let linkHeight = desc.link ? 30 : 0;
-        totalContentH = contentMargin + 50 + 50 + mainImgH + 20 + descTextHeight + 20 + linkHeight + 10 + galleryTotalH + 50;
+        totalContentH = contentMargin + 50 + 50 + mainImgH + 20 + descTextHeight + 40 + linkHeight + 15 + galleryTotalH + 50;
     } else if (imgPosition === "top") {
         // Ancien mode (si utilisé)
         totalContentH = contentMargin + mainImgH + 20 + galleryTotalH + 40 + 200 + 50;
