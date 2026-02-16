@@ -896,16 +896,16 @@ function drawImageDetail() {
     
     if (imgPosition === "single_column") {
         // Mobile layout: titre d'abord, puis image, puis texte, puis galerie
-        // Title position
+        // Title position (avec scrollOff inclus)
         let titleY = currentYMobile + 50;
         currentYMobile = titleY + 50;
         
-        // Main image
+        // Main image (avec scrollOff)
         mainImgX = width/2 - mainImgW/2;
         mainImgY = currentYMobile;
         currentYMobile += mainImgH + 20;
         
-        // Text section
+        // Text section (avec scrollOff)
         let textY = currentYMobile;
         currentYMobile += descTextHeight + 40; // +40 pour padding de sécurité
         
@@ -913,7 +913,7 @@ function drawImageDetail() {
         let linkHeight = desc.link ? 30 : 0;
         currentYMobile += linkHeight + 15; // +15 pour padding de sécurité
         
-        // Gallery
+        // Gallery starts at current tracked position (scrollOff déjà inclus)
         galleryTop = currentYMobile;
     } else {
         // Desktop layout: calculate gallery position based on longest column (image or text)
@@ -1025,20 +1025,21 @@ function drawImageDetail() {
                 image(gImg, -width/2 + bX, -height/2 + bY, bW, bH);
             }
         }
-        cursorY += galleryImgSize + (isMobile ? 10 : 20);
+        cursorY += galleryImgSize + (isMobile ? 15 : 20); // Augmenté espacement mobile
     }
     pop();
     
     // Calculate total content height for scroll limits
     let galleryColsUsed = isMobile ? 2 : 3;
     let galleryRows = Math.ceil(gallery.length / galleryColsUsed);
-    let galleryTotalH = galleryRows * (galleryImgSize + (isMobile ? 10 : 20));
+    let galleryTotalH = galleryRows * (galleryImgSize + (isMobile ? 15 : 20)); // Augmenté spacing
     
     let totalContentH;
     if (imgPosition === "single_column") {
-        // Mobile: titre + image + texte + lien + galerie (avec padding de sécurité)
+        // Mobile: titre + image + texte + lien + galerie (avec padding augmenté)
         let linkHeight = desc.link ? 30 : 0;
-        totalContentH = contentMargin + 50 + 50 + mainImgH + 20 + descTextHeight + 40 + linkHeight + 15 + galleryTotalH + 50;
+        // Augmenter les marges pour mobile pour avoir assez d'espace pour scroller
+        totalContentH = contentMargin + 50 + 50 + mainImgH + 20 + descTextHeight + 40 + linkHeight + 15 + galleryTotalH + 100;
     } else if (imgPosition === "top") {
         // Ancien mode (si utilisé)
         totalContentH = contentMargin + mainImgH + 20 + galleryTotalH + 40 + 200 + 50;
@@ -1481,29 +1482,33 @@ document.addEventListener('touchmove', function(event) {
         let deltaX = touchMoveX - touchStartX;
         let deltaY = touchMoveY - touchStartY;
         
-        // Vérifier si c'est un mouvement vertical (scroll pour pages de détail)
-        if (Math.abs(deltaY) > Math.abs(deltaX) && Math.abs(deltaY) > 15) {
+        // Prévenir le scroll du navigateur ET le comportement par défaut
+        event.preventDefault();
+        
+        // Déterminer le type de geste: vertical (scroll) ou horizontal (swipe)
+        let isVertical = Math.abs(deltaY) > Math.abs(deltaX);
+        
+        if (isVertical && Math.abs(deltaY) > 8) {
+            isTouchDragging = true;
+            
             // Scroll vertical sur les pages de détail
             if (viewMode === "image_detail" || viewMode === "about_me") {
-                isTouchDragging = true;
-                detailTargetScrollY -= deltaY; // Slide gesture: finger moves down = scroll down (negative Y)
+                detailTargetScrollY -= deltaY * 0.8; // Scroll fluide
                 detailTargetScrollY = constrain(detailTargetScrollY, -detailMaxScroll, 0);
-                touchStartY = touchMoveY;
-                event.preventDefault(); // Empêcher le scroll navigateur
-                return false;
+                touchStartY = touchMoveY; // Mettre à jour pour le prochain mouvement
             }
-        }
-        // Mouvement horizontal (swipe pour carrousel)
-        else if (Math.abs(deltaX) > Math.abs(deltaY) && Math.abs(deltaX) > 30) {
+        } 
+        else if (!isVertical && Math.abs(deltaX) > 15) {
             isTouchDragging = true;
-            // Swipe pour contrôler la rotation du carrousel
+            
+            // Swipe horizontal pour contrôler la rotation du carrousel
             if (viewMode === "carousel") {
                 targetRot += deltaX * 0.02;
             }
-            touchStartX = touchMoveX;
+            touchStartX = touchMoveX; // Mettre à jour pour le prochain mouvement
         }
     }
-}, { passive: false }); // passive: false pour pouvoir arrêter le scroll du navigateur
+}, { passive: false }); // passive: false pour pouvoir forcer preventDefault
 
 document.addEventListener('touchend', function(event) {
     if (isMobile || isTablet) {
