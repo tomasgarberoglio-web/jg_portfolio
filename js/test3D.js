@@ -17,6 +17,7 @@ detectDevice();
 // Variables globales essentielles (déclarées avant toute utilisation)
 let Font; // Police de caractère chargée
 let signaImg; // Logo/signature image
+let userInteracted = false; // Flag pour iOS - track si utilisateur a interagi (débloque autoplay vidéos)
 
 // ============================================
 // IMAGES DU CARROUSEL
@@ -394,13 +395,28 @@ function setup() {
     let w = windowWidth;
     let h = windowHeight;
     
+    // Détecter iOS spécifiquement
+    let isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+    
     // Sur mobile, réduire la qualité de rendu mais garder la performance
-    if (isMobile && _renderer && _renderer.pixelDensity) {
-        pixelDensity(1); // pixelDensity réduit pour mobile
+    if (isMobile) {
+        try {
+            pixelDensity(1); // pixelDensity réduit pour mobile - meilleure performance iOS
+        } catch (e) {
+            console.warn('pixelDensity not supported');
+        }
     }
     
     createCanvas(w, h, WEBGL);
     textOverlay = createGraphics(w, h); // 2D overlay for text
+    
+    // Sur iOS, prévenir le zoom et les gestes par défaut
+    if (isIOS) {
+        document.body.style.zoom = 1;
+        document.body.style.overscrollBehavior = 'none';
+        document.documentElement.style.webkitUserSelectAll = 'none';
+        document.documentElement.style.webkitTouchCallout = 'none';
+    }
 
     // Enregistrer la police via CSS @font-face pour utiliser le moteur natif du navigateur
     // (p5 loadFont utilise opentype.js dont les metrics sont cassées pour cette police)
@@ -421,6 +437,17 @@ function setup() {
 
     cardsCount = carouselFiles.length;
 
+    // Ajouter un event listener au canvas pour débloquer autoplay vidéo sur iOS au premier clic
+    let canvas = document.querySelector('canvas');
+    if (canvas && (isMobile || /iPad|iPhone|iPod/.test(navigator.userAgent))) {
+        canvas.addEventListener('click', function unlockVideos() {
+            if (!userInteracted) {
+                userInteracted = true;
+                console.log('Videos unlocked after user interaction');
+            }
+        }, { once: false });
+    }
+
     // Charger les vidéos du carrousel (createVideo doit être appelé après createCanvas)
     for (let i = 0; i < carouselFiles.length; i++) {
         if (isVideo(carouselFiles[i])) {
@@ -429,13 +456,25 @@ function setup() {
             vid.loop();    // lecture en boucle
             vid.volume(0); // muet
             
-            // Redémarrer la vidéo si elle est déjà en cours d'exécution
-            try {
-                if (vid.elt && vid.elt.play) {
-                    vid.elt.play().catch(err => console.warn('Erreur playback vidéo:', carouselFiles[i]));
+            // Ajouter muted attribute pour iOS autoplay (IMPORTANT)
+            if (vid.elt) {
+                vid.elt.muted = true;
+                vid.elt.playsInline = true;  // Pour iOS - permet lecture inline sans fullscreen
+                vid.elt.setAttribute('playsinline', 'true');
+                vid.elt.setAttribute('muted', 'true');
+                vid.elt.setAttribute('autoplay', 'autoplay');
+                
+                // Essayer de jouer après user interaction ou délai court
+                try {
+                    let playPromise = vid.elt.play();
+                    if (playPromise !== undefined) {
+                        playPromise.catch(err => {
+                            console.warn('Autoplay bloqué sur iOS pour:', carouselFiles[i], '- attente interaction utilisateur');
+                        });
+                    }
+                } catch (e) {
+                    console.warn('Cannot autoplay video:', carouselFiles[i]);
                 }
-            } catch (e) {
-                console.warn('Cannot play video:', carouselFiles[i]);
             }
             
             carouselImgs[i] = vid;
@@ -450,12 +489,26 @@ function setup() {
                 vid.loop();
                 vid.volume(0);
                 
-                try {
-                    if (vid.elt && vid.elt.play) {
-                        vid.elt.play().catch(err => console.warn('Erreur playback vidéo galerie:', f));
+                // Ajouter muted attribute et playsInline pour iOS
+                if (vid.elt) {
+                    vid.elt.muted = true;
+                    vid.elt.playsInline = true;
+                    vid.elt.setAttribute('playsinline', 'true');
+                    vid.elt.setAttribute('muted', 'true');
+                    
+                    // Essayer de jouer après user interaction
+                    if (userInteracted) {
+                        try {
+                            let playPromise = vid.elt.play();
+                            if (playPromise !== undefined) {
+                                playPromise.catch(err => {
+                                    console.debug('Gallery video play after interaction');
+                                });
+                            }
+                        } catch (e) {
+                            console.warn('Cannot play gallery video:', f);
+                        }
                     }
-                } catch (e) {
-                    console.warn('Cannot play gallery video:', f);
                 }
                 
                 galleryImgMap[f] = vid;
@@ -485,18 +538,20 @@ function draw() {
 function drawCarousel() {
     background(255);
     
-    // Assurer que les vidéos jouent correctement
-    for (let i = 0; i < carouselImgs.length; i++) {
-        let img = carouselImgs[i];
-        if (img && isVideo(carouselFiles[i])) {
-            try {
-                if (img.elt && !img.elt.paused) {
-                    // vidéo pense qu'elle joue, tout va bien
-                } else if (img.elt) {
-                    img.elt.play().catch(err => null);
+    // Assurer que les vidéos jouent correctement (seulement après interaction utilisateur sur iOS)
+    if (userInteracted) {
+        for (let i = 0; i < carouselImgs.length; i++) {
+            let img = carouselImgs[i];
+            if (img && isVideo(carouselFiles[i])) {
+                try {
+                    if (img.elt && !img.elt.paused) {
+                        // vidéo pense qu'elle joue, tout va bien
+                    } else if (img.elt && img.elt.paused) {
+                        img.elt.play().catch(err => null);
+                    }
+                } catch (e) {
+                    // ignorer les erreurs
                 }
-            } catch (e) {
-                // ignorer les erreurs
             }
         }
     }
@@ -987,18 +1042,20 @@ function drawImageDetail() {
         (width - contentMargin * 2 - 40) / 3;   // 3 colonnes sur desktop
     let gallery = desc.gallery || [];
     
-    // Assurer que les vidéos de galerie jouent correctement
-    for (let f of gallery) {
-        let gImg = galleryImgMap[f];
-        if (gImg && isVideo(f)) {
-            try {
-                if (gImg.elt && !gImg.elt.paused) {
-                    // vidéo pense qu'elle joue, tout va bien
-                } else if (gImg.elt) {
-                    gImg.elt.play().catch(err => null);
+    // Assurer que les vidéos de galerie jouent correctement (seulement après interaction utilisateur sur iOS)
+    if (userInteracted) {
+        for (let f of gallery) {
+            let gImg = galleryImgMap[f];
+            if (gImg && isVideo(f)) {
+                try {
+                    if (gImg.elt && !gImg.elt.paused) {
+                        // vidéo pense qu'elle joue, tout va bien
+                    } else if (gImg.elt && gImg.elt.paused) {
+                        gImg.elt.play().catch(err => null);
+                    }
+                } catch (e) {
+                    // ignorer les erreurs
                 }
-            } catch (e) {
-                // ignorer les erreurs
             }
         }
     }
@@ -1555,13 +1612,34 @@ document.addEventListener('touchmove', function(event) {
 
 document.addEventListener('touchend', function(event) {
     if (isMobile || isTablet) {
+        // Flag pour débloquer les vidéos autoplay sur iOS après interaction utilisateur
+        if (!userInteracted) {
+            userInteracted = true;
+            // Relancer les vidéos si bloquées par autoplay policy
+            for (let i = 0; i < carouselImgs.length; i++) {
+                let img = carouselImgs[i];
+                if (img && isVideo(carouselFiles[i]) && img.elt) {
+                    try {
+                        let playPromise = img.elt.play();
+                        if (playPromise !== undefined) {
+                            playPromise.catch(err => {
+                                console.debug('Video play after interaction:', err.message);
+                            });
+                        }
+                    } catch (e) {
+                        console.warn('Cannot play after user interaction:', carouselFiles[i]);
+                    }
+                }
+            }
+        }
+        
         let touchEndTime = Date.now();
         let tapDuration = touchEndTime - touchStartTime;
         
         // Si c'est un tap (pas un drag et durée courte), traiter comme un clic
         // Utiliser hasSignificantMovement plutôt que de recalculer le mouvement
         if (!hasSignificantMovement && !isTouchDragging && tapDuration < 500) {
-            // Utiliser les coordonnées du touch avec conversion correcte
+            // Utiliser les coordonnées du touch avec conversion correcte (IMPORTANT pour iOS)
             let touch = event.changedTouches[0];
             let canvas = document.querySelector('canvas');
             if (canvas) {
