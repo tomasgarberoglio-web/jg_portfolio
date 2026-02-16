@@ -298,9 +298,15 @@ let touchStartY = 0;
 let touchStartTime = 0;
 let isTouchDragging = false;
 
-function isVideo(filename) {
-    let lower = filename.toLowerCase();
-    return videoExtensions.some(ext => lower.endsWith(ext));
+function calculateTextHeight(text, maxWidth, textSize) {
+    // Estimer la hauteur du texte multiligne
+    // Approximation: largeur moyenne de caractère ~ textSize * 0.5
+    let avgCharWidth = textSize * 0.5;
+    let charsPerLine = Math.floor(maxWidth / avgCharWidth);
+    let numLines = Math.ceil(text.length / charsPerLine);
+    // Hauteur de ligne approximative
+    let lineHeight = textSize * 1.5;
+    return numLines * lineHeight;
 }
 
 
@@ -819,16 +825,21 @@ function drawImageDetail() {
     let textAreaX = contentMargin;
     let mainImgX, mainImgY, galleryTop;
     
+    // PRE-CALCULER LA HAUTEUR DU TEXTE POUR MOBILE
+    let descTextHeight = 0;
+    let descText = getImageText(selectedImageIndex);
+    if (isMobile) {
+        descTextHeight = calculateTextHeight(descText, width - contentMargin * 2, 12);
+    }
+    
     // Variables pour tracker les positions dans le layout mobile
     let currentYMobile = contentMargin + scrollOff;
     
     if (imgPosition === "single_column") {
         // Mobile layout: titre d'abord, puis image, puis texte, puis galerie
-        // We'll calculate positions as we go through content
-        
-        // Title position (will be drawn to overlay later)
-        let titleY = currentYMobile;
-        currentYMobile += 50; // Space for title
+        // Title position
+        let titleY = currentYMobile + 50;
+        currentYMobile = titleY + 50;
         
         // Main image
         mainImgX = width/2 - mainImgW/2;
@@ -837,7 +848,7 @@ function drawImageDetail() {
         
         // Text section
         let textY = currentYMobile;
-        currentYMobile += 150; // Estimated height for text
+        currentYMobile += descTextHeight + 20;
         
         // Gallery
         galleryTop = currentYMobile;
@@ -951,11 +962,18 @@ function drawImageDetail() {
     let galleryColsUsed = isMobile ? 2 : 3;
     let galleryRows = Math.ceil(gallery.length / galleryColsUsed);
     let galleryTotalH = galleryRows * (galleryImgSize + (isMobile ? 10 : 20));
-    let totalContentH = (imgPosition === "single_column" ? 
-        contentMargin + 50 + mainImgH + 150 + galleryTotalH + 40 :
-        imgPosition === "top" ? 
-        contentMargin + mainImgH + 20 + galleryTotalH + 40 :
-        90 + mainImgH + 40 + galleryTotalH + 40) + 300; // +300 pour texte
+    
+    let totalContentH;
+    if (imgPosition === "single_column") {
+        // Mobile: titre + image + texte + galerie
+        totalContentH = contentMargin + 50 + 50 + mainImgH + 20 + descTextHeight + 20 + galleryTotalH + 50;
+    } else if (imgPosition === "top") {
+        // Ancien mode (si utilisé)
+        totalContentH = contentMargin + mainImgH + 20 + galleryTotalH + 40 + 200 + 50;
+    } else {
+        // Desktop
+        totalContentH = 90 + mainImgH + 40 + galleryTotalH + 40 + 200 + 50;
+    }
     detailMaxScroll = max(0, totalContentH - height);
     
     // === ALL TEXT via 2D overlay ===
@@ -965,7 +983,7 @@ function drawImageDetail() {
     if (imgPosition === "single_column") {
         // Mobile: une colonne avec titre en haut
         let textWidth = width - contentMargin * 2;
-        let titleY = contentMargin + scrollOff;
+        let titleY = contentMargin + scrollOff + 50; // Décaler titre pour éviter chevauchement avec X
         
         // Title
         textOverlay.fill(0);
@@ -982,14 +1000,12 @@ function drawImageDetail() {
         textOverlay.textSize(12);
         textOverlay.textStyle(NORMAL);
         textOverlay.textAlign(LEFT, TOP);
-        let descText = getImageText(selectedImageIndex);
-        textOverlay.text(descText, textAreaX, textY, textWidth, 200);
+        textOverlay.text(descText, textAreaX, textY, textWidth, 500);
         
         // Clickable link (if defined)
         linkBounds = null;
         if (desc.link) {
-            let descTextH = Math.ceil(descText.length / 20) * 20;
-            let linkY = textY + descTextH + 15;
+            let linkY = textY + descTextHeight + 20;
             let linkText = getImageLinkLabel(selectedImageIndex) || desc.link;
             textOverlay.fill(0);
             textOverlay.textSize(11);
