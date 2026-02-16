@@ -552,8 +552,8 @@ function drawCarousel() {
     textOverlay.textFont(cssFontName);
     
     // Adapter les tailles pour mobile
-    let uiFontSize = isMobile ? 10 : 12;
-    let sigH = isMobile ? 28 : 35;
+    let uiFontSize = isMobile ? 8 : 10;
+    let sigH = isMobile ? 14 : 17.5;
     
     // Display signa image top-left
     let sigW = sigH * (signaImg.width / signaImg.height);
@@ -795,10 +795,10 @@ function drawImageDetail() {
     let mainImgMaxW, mainImgMaxH, imgPosition;
     
     if (isMobile) {
-        // Mobile: image en haut, texte en bas (une colonne)
+        // Mobile: une colonne avec ordre: titre, image, texte, galerie
         mainImgMaxW = width - contentMargin * 2;
         mainImgMaxH = height * 0.35;
-        imgPosition = "top";
+        imgPosition = "single_column";
     } else {
         // Desktop: image à droite, texte à gauche (deux colonnes)
         let textLeftWidth = width * 0.35;
@@ -819,11 +819,28 @@ function drawImageDetail() {
     let textAreaX = contentMargin;
     let mainImgX, mainImgY, galleryTop;
     
-    if (imgPosition === "top") {
-        // Mobile layout
+    // Variables pour tracker les positions dans le layout mobile
+    let currentYMobile = contentMargin + scrollOff;
+    
+    if (imgPosition === "single_column") {
+        // Mobile layout: titre d'abord, puis image, puis texte, puis galerie
+        // We'll calculate positions as we go through content
+        
+        // Title position (will be drawn to overlay later)
+        let titleY = currentYMobile;
+        currentYMobile += 50; // Space for title
+        
+        // Main image
         mainImgX = width/2 - mainImgW/2;
-        mainImgY = contentMargin + scrollOff;
-        galleryTop = mainImgY + mainImgH + 20;
+        mainImgY = currentYMobile;
+        currentYMobile += mainImgH + 20;
+        
+        // Text section
+        let textY = currentYMobile;
+        currentYMobile += 150; // Estimated height for text
+        
+        // Gallery
+        galleryTop = currentYMobile;
     } else {
         // Desktop layout
         mainImgX = width - contentMargin - mainImgW;
@@ -934,7 +951,9 @@ function drawImageDetail() {
     let galleryColsUsed = isMobile ? 2 : 3;
     let galleryRows = Math.ceil(gallery.length / galleryColsUsed);
     let galleryTotalH = galleryRows * (galleryImgSize + (isMobile ? 10 : 20));
-    let totalContentH = (imgPosition === "top" ? 
+    let totalContentH = (imgPosition === "single_column" ? 
+        contentMargin + 50 + mainImgH + 150 + galleryTotalH + 40 :
+        imgPosition === "top" ? 
         contentMargin + mainImgH + 20 + galleryTotalH + 40 :
         90 + mainImgH + 40 + galleryTotalH + 40) + 300; // +300 pour texte
     detailMaxScroll = max(0, totalContentH - height);
@@ -943,37 +962,37 @@ function drawImageDetail() {
     textOverlay.clear();
     textOverlay.textFont(cssFontName);
     
-    if (imgPosition === "top") {
-        // Mobile: tout le texte en dessous de l'image
-        let textY = galleryTop + galleryTotalH + 20;
+    if (imgPosition === "single_column") {
+        // Mobile: une colonne avec titre en haut
         let textWidth = width - contentMargin * 2;
-        let titleY = textY;
+        let titleY = contentMargin + scrollOff;
         
         // Title
         textOverlay.fill(0);
         textOverlay.noStroke();
-        textOverlay.textSize(isMobile ? 18 : 28);
+        textOverlay.textSize(18);
         textOverlay.textStyle(BOLD);
         textOverlay.textAlign(LEFT, TOP);
         textOverlay.text(getImageTitle(selectedImageIndex), textAreaX, titleY);
         
-        // Description text
+        // Description text (after image)
+        let textY = titleY + 50 + mainImgH + 20;
         textOverlay.noStroke();
         textOverlay.fill(0);
-        textOverlay.textSize(isMobile ? 12 : 14);
+        textOverlay.textSize(12);
         textOverlay.textStyle(NORMAL);
         textOverlay.textAlign(LEFT, TOP);
         let descText = getImageText(selectedImageIndex);
-        textOverlay.text(descText, textAreaX, titleY + 40, textWidth, 200);
+        textOverlay.text(descText, textAreaX, textY, textWidth, 200);
         
         // Clickable link (if defined)
         linkBounds = null;
         if (desc.link) {
-            let descTextH = Math.ceil(descText.length / (isMobile ? 20 : 30)) * 20;
-            let linkY = titleY + 40 + descTextH + 15;
+            let descTextH = Math.ceil(descText.length / 20) * 20;
+            let linkY = textY + descTextH + 15;
             let linkText = getImageLinkLabel(selectedImageIndex) || desc.link;
             textOverlay.fill(0);
-            textOverlay.textSize(isMobile ? 11 : 14);
+            textOverlay.textSize(11);
             textOverlay.textStyle(BOLD);
             textOverlay.textAlign(LEFT, TOP);
             textOverlay.text(linkText, textAreaX, linkY);
@@ -1135,26 +1154,21 @@ function drawAboutMe() {
         textOverlay.text(aboutMeContent.bios[currentLanguage] || aboutMeContent.bios['fr'], 
             contentMargin, 140 + firstParaHeight + 20 + scrollOff, maxContentWidth, 400);
     } else {
-        // Desktop: deux colonnes
-        let columnWidth = (maxContentWidth - 40) / 2;
-        let leftColumnX = contentMargin;
-        let rightColumnX = contentMargin + columnWidth + 40;
-        
-        // First paragraph - Left column
+        // Desktop: une colonne aussi
+        let textSize = 14;
         textOverlay.fill(0);
-        textOverlay.textSize(16);
+        textOverlay.textSize(textSize);
         textOverlay.textStyle(NORMAL);
         textOverlay.textAlign(LEFT, TOP);
+        
+        // First paragraph
         textOverlay.text(aboutMeContent.texts[currentLanguage] || aboutMeContent.texts['fr'], 
-            leftColumnX, 150 + scrollOff, columnWidth, 500);
+            contentMargin, 150 + scrollOff, maxContentWidth, 500);
         
-        // Second paragraph - Right column
-        textOverlay.fill(0);
-        textOverlay.textSize(16);
-        textOverlay.textStyle(NORMAL);
-        textOverlay.textAlign(LEFT, TOP);
+        // Second paragraph offset
+        let firstParaHeight = 250;
         textOverlay.text(aboutMeContent.bios[currentLanguage] || aboutMeContent.bios['fr'], 
-            rightColumnX, 150 + scrollOff, columnWidth, 500);
+            contentMargin, 150 + firstParaHeight + 20 + scrollOff, maxContentWidth, 500);
     }
     
     // Back button (fixed, does not scroll)
