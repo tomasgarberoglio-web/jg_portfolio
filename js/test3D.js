@@ -606,7 +606,6 @@ function drawCarousel() {
     textOverlay.textFont(cssFontName);
     
     // Adapter les tailles pour mobile
-    let uiFontSize = isMobile ? 8 : 10;
     let sigH = isMobile ? 14 : 17.5;
     
     // Display signa image top-left
@@ -618,15 +617,23 @@ function drawCarousel() {
     // Display "about me" text to the right of signa image
     textOverlay.fill(0);
     textOverlay.noStroke();
+    let uiFontSize = isMobile ? 10 : 10;  // Increased from 8 to 10 on mobile for better readability
     textOverlay.textSize(uiFontSize);
     textOverlay.textAlign(LEFT, TOP);
     let aboutMeText = getText('about_me');
     let aboutMeX = sigX + sigW + (isMobile ? 8 : 15);
     let aboutMeY = sigY + (sigH / 2) - (uiFontSize / 2);
     textOverlay.text(aboutMeText, aboutMeX, aboutMeY);
-    // Store about me bounds for click detection
+    // Store about me bounds for click detection - Larger touch targets on mobile (min 44px)
     let aboutMeTw = textOverlay.textWidth(aboutMeText);
-    aboutMeBounds = { x: aboutMeX, y: aboutMeY, w: aboutMeTw, h: uiFontSize + 4, text: aboutMeText };
+    let aboutMeClickHeight = isMobile ? 44 : (uiFontSize + 4);
+    aboutMeBounds = { 
+        x: aboutMeX - 5, 
+        y: aboutMeY - 8, 
+        w: aboutMeTw + 10, 
+        h: aboutMeClickHeight, 
+        text: aboutMeText 
+    };
     
     textOverlay.textSize(uiFontSize);
     textOverlay.textAlign(CENTER, TOP);
@@ -634,7 +641,15 @@ function drawCarousel() {
     let instagramY = isMobile ? 10 : 20;
     textOverlay.text(instagramText, width/2, instagramY);
     let instagramTw = textOverlay.textWidth(instagramText);
-    instagramBounds = { x: width/2 - instagramTw/2, y: instagramY, w: instagramTw, h: uiFontSize + 4, text: instagramText, url: 'https://www.instagram.com/jg_sutdio' };
+    let instagramClickHeight = isMobile ? 44 : (uiFontSize + 4);
+    instagramBounds = { 
+        x: width/2 - instagramTw/2 - 5, 
+        y: instagramY - 8, 
+        w: instagramTw + 10, 
+        h: instagramClickHeight, 
+        text: instagramText, 
+        url: 'https://www.instagram.com/jg_sutdio' 
+    };
     
     textOverlay.textSize(uiFontSize);
     textOverlay.textAlign(RIGHT, TOP);
@@ -644,12 +659,25 @@ function drawCarousel() {
     textOverlay.text(phoneText, width - rightMargin, instagramY);
     textOverlay.text(emailText, width - rightMargin, instagramY + (uiFontSize + 4));
     
-    // Store contact bounds for click detection
+    // Store contact bounds for click detection - Larger touch targets on mobile
     let phoneTw = textOverlay.textWidth(phoneText);
     let emailTw = textOverlay.textWidth(emailText);
+    let contactClickHeight = isMobile ? 44 : (uiFontSize + 4);
     contactBounds = [
-        { x: width - rightMargin - phoneTw, y: instagramY, w: phoneTw, h: uiFontSize + 4, text: '06.10.05.79.32' },
-        { x: width - rightMargin - emailTw, y: instagramY + (uiFontSize + 4), w: emailTw, h: uiFontSize + 4, text: 'jose.garberoglio.contact@gmail.com' }
+        { 
+            x: width - rightMargin - phoneTw - 5, 
+            y: instagramY - 8, 
+            w: phoneTw + 10, 
+            h: contactClickHeight, 
+            text: '06.10.05.79.32' 
+        },
+        { 
+            x: width - rightMargin - emailTw - 5, 
+            y: instagramY + (uiFontSize + 4) - 8, 
+            w: emailTw + 10, 
+            h: contactClickHeight, 
+            text: 'jose.garberoglio.contact@gmail.com' 
+        }
     ];
     
     // Hand cursor on hover over contacts
@@ -691,13 +719,13 @@ function drawCarousel() {
         textOverlay.noStroke();
     }
     
-    // Language buttons bottom right
-    let langBtnSize = isMobile ? 36 : 30;
+    // Language buttons bottom right - iOS accessible (minimum 44x44px)
+    let langBtnSize = isMobile ? 44 : 38;  // Minimum 44px for iOS/Android accessibility
     let langBtnPadding = isMobile ? 6 : 10;
     let languages = ['FR', 'ES', 'EN'];
     let langCodes = ['fr', 'es', 'en'];
     let langStartX = width - (langBtnSize * languages.length + langBtnPadding * (languages.length - 1)) - (isMobile ? 8 : 20);
-    let langStartY = height - (isMobile ? 50 : 50);
+    let langStartY = height - (isMobile ? 48 : 50);
     
     languageButtons = [];
     let overLanguage = false;
@@ -1206,8 +1234,8 @@ function drawImageDetail() {
 function drawAboutMe() {
     background(245);
     
-    // Layout constants adaptatifs
-    let contentMargin = isMobile ? 15 : 80;
+    // Layout constants adaptatifs - Better for mobile
+    let contentMargin = isMobile ? 18 : 80;
     let maxContentWidth = width - contentMargin * 2;
     let scrollOff = detailScrollY;
     
@@ -1215,10 +1243,10 @@ function drawAboutMe() {
     textOverlay.clear();
     textOverlay.textFont(cssFontName);
     
-    // Title
+    // Title with better mobile sizing
     textOverlay.fill(0);
     textOverlay.noStroke();
-    textOverlay.textSize(isMobile ? 32 : 48);
+    textOverlay.textSize(isMobile ? 28 : 48);
     textOverlay.textStyle(BOLD);
     textOverlay.textAlign(LEFT, TOP);
     textOverlay.text(aboutMeContent.titles[currentLanguage] || aboutMeContent.titles['fr'], contentMargin, 60 + scrollOff);
@@ -1230,24 +1258,25 @@ function drawAboutMe() {
     textOverlay.noStroke();
     
     if (isMobile) {
-        // Mobile: une colonne
-        let textSize = 13;
+        // Mobile: single column with better spacing and font size
+        let textSize = 14;  // Increased from 13 for better readability
+        let lineSpacing = 18; // Better vertical spacing on mobile
         textOverlay.fill(0);
         textOverlay.textSize(textSize);
         textOverlay.textStyle(NORMAL);
         textOverlay.textAlign(LEFT, TOP);
         
-        // First paragraph
+        // First paragraph with more space
         textOverlay.text(aboutMeContent.texts[currentLanguage] || aboutMeContent.texts['fr'], 
-            contentMargin, 140 + scrollOff, maxContentWidth, 400);
+            contentMargin, 140 + scrollOff, maxContentWidth, 500);  // Increased from 400
         
-        // Second paragraph offset
-        let firstParaHeight = 200;
+        // Second paragraph with more vertical space
+        let firstParaHeight = 280;  // Increased from 200
         textOverlay.text(aboutMeContent.bios[currentLanguage] || aboutMeContent.bios['fr'], 
-            contentMargin, 140 + firstParaHeight + 20 + scrollOff, maxContentWidth, 400);
+            contentMargin, 140 + firstParaHeight + 30 + scrollOff, maxContentWidth, 500);  // Increased gap from 20 to 30
     } else {
-        // Desktop: une colonne aussi
-        let textSize = 14;
+        // Desktop: single column also (better layout)
+        let textSize = 16;
         textOverlay.fill(0);
         textOverlay.textSize(textSize);
         textOverlay.textStyle(NORMAL);
@@ -1263,12 +1292,14 @@ function drawAboutMe() {
             contentMargin, 150 + firstParaHeight + 20 + scrollOff, maxContentWidth, 500);
     }
     
-    // Back button (fixed, does not scroll)
+    // Back button (fixed, does not scroll) - Larger on mobile for accessibility
     textOverlay.fill(0);
-    textOverlay.textSize(isMobile ? 24 : 32);
+    textOverlay.textSize(isMobile ? 28 : 32);
     textOverlay.textAlign(CENTER, CENTER);
     textOverlay.textStyle(NORMAL);
-    textOverlay.text('X', contentMargin + (isMobile ? 15 : 20), contentMargin + (isMobile ? 15 : 20));
+    let backX = contentMargin + (isMobile ? 18 : 20);
+    let backY = contentMargin + (isMobile ? 18 : 20);
+    textOverlay.text('X', backX, backY);
     
     // Display 2D overlay on top
     push();
@@ -1277,10 +1308,8 @@ function drawAboutMe() {
     image(textOverlay, -width/2, -height/2);
     pop();
     
-    // Calculate total content height for scroll limits
-    let totalContentH = isMobile ? 
-        60 + 400 + 20 + 200 :
-        90 + 60 + 200 + 400;
+    // Calculate total content height for scroll limits - adjusted for mobile
+    let totalContentH = isMobile ? 950 : 600;
     detailMaxScroll = max(0, totalContentH - height);
 }
 
@@ -1313,16 +1342,17 @@ function mouseWheel(event) {
 }
 
 function mousePressed() {
-    // Adaptative margins for mobile/desktop
-    let contentMargin = isMobile ? 15 : 60;
-    let backBtnSize = isMobile ? 30 : 40;
+    // Adaptative margins for mobile/desktop with iOS-compliant touch target sizing
+    let contentMargin = isMobile ? 18 : 60;
+    let backBtnSize = isMobile ? 50 : 40;  // Minimum 44px for iOS/Android + padding
     let backBtnX = contentMargin;
     let backBtnY = contentMargin;
     
     // Check if in about me view
     if (viewMode === "about_me") {
-        // Back button (top left)
-        if (mouseX > backBtnX && mouseX < backBtnX + backBtnSize && mouseY > backBtnY && mouseY < backBtnY + backBtnSize) {
+        // Back button (top left) - Larger touch target on mobile
+        if (mouseX > backBtnX - 5 && mouseX < backBtnX + backBtnSize + 5 && 
+            mouseY > backBtnY - 5 && mouseY < backBtnY + backBtnSize + 5) {
             viewMode = "carousel";
             detailScrollY = 0;
             detailTargetScrollY = 0;
