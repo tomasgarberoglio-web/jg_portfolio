@@ -297,6 +297,7 @@ let touchStartX = 0;
 let touchStartY = 0;
 let touchStartTime = 0;
 let isTouchDragging = false;
+let hasSignificantMovement = false;
 
 function isVideo(filename) {
     let lower = filename.toLowerCase();
@@ -1492,6 +1493,11 @@ document.addEventListener('touchmove', function(event) {
         
         // Déterminer le type de geste: vertical (scroll) ou horizontal (swipe)
         let isVertical = Math.abs(deltaY) > Math.abs(deltaX);
+        let significantMovement = Math.abs(deltaX) > 20 || Math.abs(deltaY) > 20;
+        
+        if (significantMovement) {
+            hasSignificantMovement = true;
+        }
         
         if (isVertical && Math.abs(deltaY) > 8) {
             isTouchDragging = true;
@@ -1520,28 +1526,25 @@ document.addEventListener('touchend', function(event) {
         let touchEndTime = Date.now();
         let tapDuration = touchEndTime - touchStartTime;
         
-        // Calculer le mouvement total du doigt
-        let touchEndX = event.changedTouches[0].clientX;
-        let touchEndY = event.changedTouches[0].clientY;
-        let totalDeltaX = touchEndX - touchStartX;
-        let totalDeltaY = touchEndY - touchStartY;
-        let totalMovement = Math.sqrt(totalDeltaX * totalDeltaX + totalDeltaY * totalDeltaY);
-        
-        // Si c'est un tap (pas un drag = peu de mouvement et durée courte), traiter comme un clic
-        if (!isTouchDragging && tapDuration < 300 && totalMovement < 30) {
-            // Simuler un mousePressed avec les coordonnées du touch converties
-            // Récupérer la position du canvas et convertir les coordonnées
+        // Si c'est un tap (pas un drag et durée courte), traiter comme un clic
+        // Utiliser hasSignificantMovement plutôt que de recalculer le mouvement
+        if (!hasSignificantMovement && !isTouchDragging && tapDuration < 500) {
+            // Utiliser les coordonnées du touch avec conversion correcte
+            let touch = event.changedTouches[0];
             let canvas = document.querySelector('canvas');
             if (canvas) {
                 let rect = canvas.getBoundingClientRect();
-                mouseX = event.changedTouches[0].clientX - rect.left;
-                mouseY = event.changedTouches[0].clientY - rect.top;
+                // P5.js utilise des coordonnées relatives au viewport
+                mouseX = touch.clientX - rect.left;
+                mouseY = touch.clientY - rect.top;
             } else {
-                mouseX = event.changedTouches[0].clientX;
-                mouseY = event.changedTouches[0].clientY;
+                // Fallback si pas de canvas trouvé
+                mouseX = touch.clientX;
+                mouseY = touch.clientY;
             }
             mousePressed();
         }
         isTouchDragging = false;
+        hasSignificantMovement = false;
     }
 }, { passive: true });
