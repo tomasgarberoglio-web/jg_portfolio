@@ -1325,6 +1325,9 @@ function mousePressed() {
             viewMode = "carousel";
             detailScrollY = 0;
             detailTargetScrollY = 0;
+            expandedGalleryImg = null; // Réinitialiser l'image agrandie
+            expandedVideoFile = null; // Réinitialiser la vidéo
+            selectedImageIndex = null;
             cursor(ARROW);
             return false;
         }
@@ -1357,6 +1360,8 @@ function mousePressed() {
             selectedImageIndex = null;
             detailScrollY = 0;
             detailTargetScrollY = 0;
+            expandedGalleryImg = null; // Réinitialiser l'image agrandie
+            expandedVideoFile = null; // Réinitialiser la vidéo
             cursor(ARROW);
             return false;
         }
@@ -1456,6 +1461,8 @@ function mousePressed() {
                 viewMode = "image_detail";
                 detailScrollY = 0;
                 detailTargetScrollY = 0;
+                expandedGalleryImg = null; // Réinitialiser l'image agrandie
+                expandedVideoFile = null; // Réinitialiser la vidéo
                 return false;
             }
         }
@@ -1515,8 +1522,15 @@ document.addEventListener('touchend', function(event) {
         let touchEndTime = Date.now();
         let tapDuration = touchEndTime - touchStartTime;
         
-        // Si c'est un tap (pas un drag), traiter comme un clic
-        if (!isTouchDragging && tapDuration < 300) {
+        // Calculer le mouvement total du doigt
+        let touchEndX = event.changedTouches[0].clientX;
+        let touchEndY = event.changedTouches[0].clientY;
+        let totalDeltaX = touchEndX - touchStartX;
+        let totalDeltaY = touchEndY - touchStartY;
+        let totalMovement = Math.sqrt(totalDeltaX * totalDeltaX + totalDeltaY * totalDeltaY);
+        
+        // Si c'est un tap (pas un drag = peu de mouvement et durée courte), traiter comme un clic
+        if (!isTouchDragging && tapDuration < 300 && totalMovement < 30) {
             // Simuler un mousePressed avec les coordonnées du touch converties
             // Récupérer la position du canvas et convertir les coordonnées
             let canvas = document.querySelector('canvas');
