@@ -1372,8 +1372,8 @@ function mousePressed() {
             window.open(linkBounds.url, '_blank');
             return false;
         }
-        // Click on main image to expand
-        if (mainImageBounds && mouseX >= mainImageBounds.x && mouseX <= mainImageBounds.x + mainImageBounds.w && 
+        // Click on main image to expand (desktop only)
+        if (!isMobile && mainImageBounds && mouseX >= mainImageBounds.x && mouseX <= mainImageBounds.x + mainImageBounds.w && 
             mouseY >= mainImageBounds.y && mouseY <= mainImageBounds.y + mainImageBounds.h) {
             expandedGalleryImg = mainImageBounds.img;
             // Play video sound if applicable
@@ -1389,24 +1389,26 @@ function mousePressed() {
             }
             return false;
         }
-        // Click on gallery image to expand
-        for (let r = 0; r < galleryRects.length; r++) {
-            let gr = galleryRects[r];
-            if (mouseX >= gr.x && mouseX <= gr.x + gr.w && mouseY >= gr.y && mouseY <= gr.y + gr.h) {
-                expandedGalleryImg = gr.img;
-                // Play video sound if applicable
-                let gallery = imageDescriptions[selectedImageIndex].gallery || [];
-                let galleryFile = gallery[r];
-                if (isVideo(galleryFile)) {
-                    expandedVideoFile = galleryFile;
-                    let vid = galleryImgMap[galleryFile];
-                    if (vid && vid.elt) {
-                        vid.elt.currentTime = 0;
-                        vid.elt.volume = 1; // Défini le volume à 100%
-                        vid.elt.play().catch(err => console.warn('Erreur lecture vidéo galerie:', err));
+        // Click on gallery image to expand (desktop only)
+        if (!isMobile) {
+            for (let r = 0; r < galleryRects.length; r++) {
+                let gr = galleryRects[r];
+                if (mouseX >= gr.x && mouseX <= gr.x + gr.w && mouseY >= gr.y && mouseY <= gr.y + gr.h) {
+                    expandedGalleryImg = gr.img;
+                    // Play video sound if applicable
+                    let gallery = imageDescriptions[selectedImageIndex].gallery || [];
+                    let galleryFile = gallery[r];
+                    if (isVideo(galleryFile)) {
+                        expandedVideoFile = galleryFile;
+                        let vid = galleryImgMap[galleryFile];
+                        if (vid && vid.elt) {
+                            vid.elt.currentTime = 0;
+                            vid.elt.volume = 1; // Défini le volume à 100%
+                            vid.elt.play().catch(err => console.warn('Erreur lecture vidéo galerie:', err));
+                        }
                     }
+                    return false;
                 }
-                return false;
             }
         }
     }
