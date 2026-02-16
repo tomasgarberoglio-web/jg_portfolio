@@ -790,11 +790,22 @@ function drawImageDetail() {
         return;
     }
     
-    // Layout constants
-    let contentMargin = 60;
-    let textLeftWidth = width * 0.35; // left column for text
-    let mainImgMaxW = width - contentMargin * 2 - textLeftWidth - 40;
-    let mainImgMaxH = height * 0.65;
+    // LAYOUT ADAPTATIF MOBILE vs DESKTOP
+    let contentMargin = isMobile ? 15 : 60;
+    let mainImgMaxW, mainImgMaxH, imgPosition;
+    
+    if (isMobile) {
+        // Mobile: image en haut, texte en bas (une colonne)
+        mainImgMaxW = width - contentMargin * 2;
+        mainImgMaxH = height * 0.35;
+        imgPosition = "top";
+    } else {
+        // Desktop: image à droite, texte à gauche (deux colonnes)
+        let textLeftWidth = width * 0.35;
+        mainImgMaxW = width - contentMargin * 2 - textLeftWidth - 40;
+        mainImgMaxH = height * 0.65;
+        imgPosition = "right";
+    }
     
     // Main image dimensions (maintain aspect ratio)
     let img_aspect = img.width / img.height;
@@ -804,9 +815,21 @@ function drawImageDetail() {
         mainImgH = mainImgMaxH;
         mainImgW = mainImgH * img_aspect;
     }
+    
     let textAreaX = contentMargin;
-    let mainImgX = width - contentMargin - mainImgW;
-    let mainImgY = 90 + scrollOff;
+    let mainImgX, mainImgY, galleryTop;
+    
+    if (imgPosition === "top") {
+        // Mobile layout
+        mainImgX = width/2 - mainImgW/2;
+        mainImgY = contentMargin + scrollOff;
+        galleryTop = mainImgY + mainImgH + 20;
+    } else {
+        // Desktop layout
+        mainImgX = width - contentMargin - mainImgW;
+        mainImgY = 90 + scrollOff;
+        galleryTop = mainImgY + mainImgH + 40;
+    }
     
     // Draw main image in WEBGL with hover boost
     push();
@@ -830,9 +853,10 @@ function drawImageDetail() {
     mainImageBounds = { x: boostedX, y: boostedY, w: boostedW, h: boostedH, img: img };
     pop();
     
-    // Gallery section: draw gallery images in WEBGL
-    let galleryTop = mainImgY + mainImgH + 40;
-    let galleryImgSize = (width - contentMargin * 2 - 20 * 2) / 3; // 3 columns with gaps
+    // Gallery section: draw gallery images
+    let galleryImgSize = isMobile ? 
+        (width - contentMargin * 2 - 10) / 2 :  // 2 colonnes sur mobile
+        (width - contentMargin * 2 - 40) / 3;   // 3 colonnes sur desktop
     let gallery = desc.gallery || [];
     
     // Assurer que les vidéos de galerie jouent correctement
@@ -860,9 +884,11 @@ function drawImageDetail() {
         galleryBoost = new Array(gallery.length).fill(1);
     }
     galleryRects = [];
-    for (let row = 0; row < Math.ceil(gallery.length / 3); row++) {
-        for (let col = 0; col < 3; col++) {
-            let idx = row * 3 + col;
+    
+    let galleryColsCount = isMobile ? 2 : 3;
+    for (let row = 0; row < Math.ceil(gallery.length / galleryColsCount); row++) {
+        for (let col = 0; col < galleryColsCount; col++) {
+            let idx = row * galleryColsCount + col;
             if (idx >= gallery.length) break;
             let gImg = galleryImgMap[gallery[idx]];
             
@@ -878,7 +904,7 @@ function drawImageDetail() {
                 gH = galleryImgSize;
                 gW = gH * gAspect;
             }
-            let gX = contentMargin + col * (galleryImgSize + 20) + (galleryImgSize - gW) / 2;
+            let gX = contentMargin + col * (galleryImgSize + (isMobile ? 10 : 20)) + (galleryImgSize - gW) / 2;
             let gY = cursorY + (galleryImgSize - gH) / 2;
             
             // Store rect for click detection
@@ -900,110 +926,120 @@ function drawImageDetail() {
                 image(gImg, -width/2 + bX, -height/2 + bY, bW, bH);
             }
         }
-        cursorY += galleryImgSize + 20;
+        cursorY += galleryImgSize + (isMobile ? 10 : 20);
     }
     pop();
     
     // Calculate total content height for scroll limits
-    let galleryRows = Math.ceil(gallery.length / 3);
-    let galleryTotalH = galleryRows * (galleryImgSize + 20);
-    let totalContentH = 90 + mainImgH + 40 + galleryTotalH + 40;
+    let galleryColsUsed = isMobile ? 2 : 3;
+    let galleryRows = Math.ceil(gallery.length / galleryColsUsed);
+    let galleryTotalH = galleryRows * (galleryImgSize + (isMobile ? 10 : 20));
+    let totalContentH = (imgPosition === "top" ? 
+        contentMargin + mainImgH + 20 + galleryTotalH + 40 :
+        90 + mainImgH + 40 + galleryTotalH + 40) + 300; // +300 pour texte
     detailMaxScroll = max(0, totalContentH - height);
     
     // === ALL TEXT via 2D overlay ===
     textOverlay.clear();
     textOverlay.textFont(cssFontName);
     
-    // Title next to image (right column)
-    textOverlay.fill(0);
-    textOverlay.noStroke();
-    textOverlay.textSize(28);
-    textOverlay.textStyle(BOLD);
-    textOverlay.textAlign(LEFT, TOP);
-    textOverlay.text(getImageTitle(selectedImageIndex), textAreaX, mainImgY);
-    
-    // // Separator line
-    // textOverlay.stroke(180);
-    // textOverlay.strokeWeight(1);
-    // textOverlay.line(textAreaX, mainImgY + 40, textAreaX + textLeftWidth - 20, mainImgY + 40);
-    
-    // Description text (right column, below title)
-    textOverlay.noStroke();
-    textOverlay.fill(0);
-    textOverlay.textSize(14);
-    textOverlay.textStyle(NORMAL);
-    textOverlay.textAlign(LEFT, TOP);
-    let descText = getImageText(selectedImageIndex);
-    textOverlay.text(descText, textAreaX, mainImgY + 55, textLeftWidth - 20, 300);
-    
-    // Clickable link (if defined)
-    linkBounds = null;
-    if (desc.link) {
-        let linkY = mainImgY + 55 + 30; // below description text
-        // Estimate description height roughly
-        let descTextH = Math.ceil(descText.length / 30) * 20;
-        linkY = mainImgY + 55 + descTextH + 10;
-        let linkText = getImageLinkLabel(selectedImageIndex) || desc.link;
+    if (imgPosition === "top") {
+        // Mobile: tout le texte en dessous de l'image
+        let textY = galleryTop + galleryTotalH + 20;
+        let textWidth = width - contentMargin * 2;
+        let titleY = textY;
+        
+        // Title
         textOverlay.fill(0);
-        textOverlay.textSize(14);
+        textOverlay.noStroke();
+        textOverlay.textSize(isMobile ? 18 : 28);
         textOverlay.textStyle(BOLD);
         textOverlay.textAlign(LEFT, TOP);
-        textOverlay.text(linkText, textAreaX, linkY);
-        // Underline
-        let tw = textOverlay.textWidth(linkText);
-        textOverlay.stroke(0);
-        textOverlay.strokeWeight(1);
-        textOverlay.line(textAreaX, linkY + 17, textAreaX + tw, linkY + 17);
+        textOverlay.text(getImageTitle(selectedImageIndex), textAreaX, titleY);
+        
+        // Description text
         textOverlay.noStroke();
-        // Store link bounds for click detection
-        linkBounds = { x: textAreaX, y: linkY, w: tw, h: 20, url: desc.link };
-        // Change cursor on hover
-        if (mouseX >= linkBounds.x && mouseX <= linkBounds.x + linkBounds.w &&
-            mouseY >= linkBounds.y && mouseY <= linkBounds.y + linkBounds.h) {
-            cursor(HAND);
-        } else {
-            cursor(ARROW);
+        textOverlay.fill(0);
+        textOverlay.textSize(isMobile ? 12 : 14);
+        textOverlay.textStyle(NORMAL);
+        textOverlay.textAlign(LEFT, TOP);
+        let descText = getImageText(selectedImageIndex);
+        textOverlay.text(descText, textAreaX, titleY + 40, textWidth, 200);
+        
+        // Clickable link (if defined)
+        linkBounds = null;
+        if (desc.link) {
+            let descTextH = Math.ceil(descText.length / (isMobile ? 20 : 30)) * 20;
+            let linkY = titleY + 40 + descTextH + 15;
+            let linkText = getImageLinkLabel(selectedImageIndex) || desc.link;
+            textOverlay.fill(0);
+            textOverlay.textSize(isMobile ? 11 : 14);
+            textOverlay.textStyle(BOLD);
+            textOverlay.textAlign(LEFT, TOP);
+            textOverlay.text(linkText, textAreaX, linkY);
+            let tw = textOverlay.textWidth(linkText);
+            textOverlay.stroke(0);
+            textOverlay.strokeWeight(1);
+            textOverlay.line(textAreaX, linkY + 17, textAreaX + tw, linkY + 17);
+            textOverlay.noStroke();
+            linkBounds = { x: textAreaX, y: linkY, w: tw, h: 20, url: desc.link };
         }
+    } else {
+        // Desktop: deux colonnes
+        let textLeftWidth = width * 0.35;
+        
+        // Title
+        textOverlay.fill(0);
+        textOverlay.noStroke();
+        textOverlay.textSize(28);
+        textOverlay.textStyle(BOLD);
+        textOverlay.textAlign(LEFT, TOP);
+        textOverlay.text(getImageTitle(selectedImageIndex), textAreaX, mainImgY);
+        
+        // Description text
+        textOverlay.noStroke();
+        textOverlay.fill(0);
+        textOverlay.textSize(14);
+        textOverlay.textStyle(NORMAL);
+        textOverlay.textAlign(LEFT, TOP);
+        let descText = getImageText(selectedImageIndex);
+        textOverlay.text(descText, textAreaX, mainImgY + 55, textLeftWidth - 20, 300);
+        
+        // Clickable link (if defined)
+        linkBounds = null;
+        if (desc.link) {
+            let descTextH = Math.ceil(descText.length / 30) * 20;
+            let linkY = mainImgY + 55 + descTextH + 10;
+            let linkText = getImageLinkLabel(selectedImageIndex) || desc.link;
+            textOverlay.fill(0);
+            textOverlay.textSize(14);
+            textOverlay.textStyle(BOLD);
+            textOverlay.textAlign(LEFT, TOP);
+            textOverlay.text(linkText, textAreaX, linkY);
+            let tw = textOverlay.textWidth(linkText);
+            textOverlay.stroke(0);
+            textOverlay.strokeWeight(1);
+            textOverlay.line(textAreaX, linkY + 17, textAreaX + tw, linkY + 17);
+            textOverlay.noStroke();
+            linkBounds = { x: textAreaX, y: linkY, w: tw, h: 20, url: desc.link };
+        }
+    }
+    
+    // Change cursor on hover over link
+    if (linkBounds && mouseX >= linkBounds.x && mouseX <= linkBounds.x + linkBounds.w &&
+        mouseY >= linkBounds.y && mouseY <= linkBounds.y + linkBounds.h) {
+        cursor(HAND);
     } else {
         cursor(ARROW);
     }
     
-    // Info section (aligned with bottom of image) - texte libre pour chaque image
-    textOverlay.fill(70);
-    textOverlay.textSize(12);
-    textOverlay.textStyle(NORMAL);
-    textOverlay.textAlign(LEFT, TOP);
-    if (desc.infoText) {
-        let infoHeight = 120;
-        textOverlay.text(desc.infoText, textAreaX, mainImgY + mainImgH - infoHeight, textLeftWidth - 20, infoHeight);
-    }
-    
-    // Gallery title
-    // textOverlay.fill(0);
-    // textOverlay.textSize(20);
-    // textOverlay.textStyle(BOLD);
-    // textOverlay.textAlign(LEFT, TOP);
-    // drawSpacedText(textOverlay, 'Galerie', contentMargin, galleryTop - 30);
-    
-    // Info below gallery — removed (now in right column)
-    
     // Back button (fixed, does not scroll)
-    // textOverlay.fill(100, 150, 220);
-    // textOverlay.rect(20, 20, 50, 50, 5);
     textOverlay.fill(0);
-    textOverlay.textSize(32);
+    textOverlay.textSize(isMobile ? 24 : 32);
     textOverlay.textAlign(CENTER, CENTER);
     textOverlay.textStyle(NORMAL);
-    textOverlay.text('X', 45, 45);
-    
-    // Scroll indicator
-    // if (detailMaxScroll > 10) {
-    //     textOverlay.fill(180);
-    //     textOverlay.textSize(12);
-    //     textOverlay.textAlign(CENTER, TOP);
-    //     textOverlay.textStyle(NORMAL);
-    //     textOverlay.text('\u2193 Scroll pour voir plus \u2193', width / 2, height - 25);
-    // }
+    let backBtnSize = isMobile ? 30 : 40;
+    textOverlay.text('X', contentMargin + backBtnSize/2, contentMargin + backBtnSize/2);
     
     // Display 2D overlay on top
     if (!expandedGalleryImg) {
@@ -1025,7 +1061,7 @@ function drawImageDetail() {
         rectMode(CORNER);
         rect(-width/2, -height/2, width, height);
         // Draw image fitted to screen with margin
-        let margin = 60;
+        let margin = isMobile ? 30 : 60;
         let eAspect = expandedGalleryImg.width / expandedGalleryImg.height;
         let eW = width - margin * 2;
         let eH = eW / eAspect;
@@ -1047,7 +1083,7 @@ function drawImageDetail() {
     }
     
     // Handle back button click
-    if (mouseIsPressed && !expandedGalleryImg && mouseX > 20 && mouseX < 70 && mouseY > 20 && mouseY < 70) {
+    if (mouseIsPressed && !expandedGalleryImg && mouseX > contentMargin && mouseX < contentMargin + backBtnSize && mouseY > contentMargin && mouseY < contentMargin + backBtnSize) {
         viewMode = "carousel";
         selectedImageIndex = null;
         detailScrollY = 0;
@@ -1059,8 +1095,8 @@ function drawImageDetail() {
 function drawAboutMe() {
     background(245);
     
-    // Layout constants
-    let contentMargin = 80;
+    // Layout constants adaptatifs
+    let contentMargin = isMobile ? 15 : 80;
     let maxContentWidth = width - contentMargin * 2;
     let scrollOff = detailScrollY;
     
@@ -1071,42 +1107,62 @@ function drawAboutMe() {
     // Title
     textOverlay.fill(0);
     textOverlay.noStroke();
-    textOverlay.textSize(48);
+    textOverlay.textSize(isMobile ? 32 : 48);
     textOverlay.textStyle(BOLD);
     textOverlay.textAlign(LEFT, TOP);
-    textOverlay.text(aboutMeContent.titles[currentLanguage] || aboutMeContent.titles['fr'], contentMargin, 90 + scrollOff);
+    textOverlay.text(aboutMeContent.titles[currentLanguage] || aboutMeContent.titles['fr'], contentMargin, 60 + scrollOff);
     
     // Separator line
     textOverlay.stroke(200);
     textOverlay.strokeWeight(2);
-    textOverlay.line(contentMargin, 150 + scrollOff, contentMargin + 200, 150 + scrollOff);
+    textOverlay.line(contentMargin, 110 + scrollOff, contentMargin + 150, 110 + scrollOff);
     textOverlay.noStroke();
     
-    // Two column layout
-    let columnWidth = (maxContentWidth - 40) / 2; // 40px gap between columns
-    let leftColumnX = contentMargin;
-    let rightColumnX = contentMargin + columnWidth + 40;
-    
-    // First paragraph - Left column
-    textOverlay.fill(0);
-    textOverlay.textSize(16);
-    textOverlay.textStyle(NORMAL);
-    textOverlay.textAlign(LEFT, TOP);
-    textOverlay.text(aboutMeContent.texts[currentLanguage] || aboutMeContent.texts['fr'], leftColumnX, 180 + scrollOff, columnWidth, 500);
-    
-    // Second paragraph - Right column
-    textOverlay.fill(0);
-    textOverlay.textSize(16);
-    textOverlay.textStyle(NORMAL);
-    textOverlay.textAlign(LEFT, TOP);
-    textOverlay.text(aboutMeContent.bios[currentLanguage] || aboutMeContent.bios['fr'], rightColumnX, 180 + scrollOff, columnWidth, 500);
+    if (isMobile) {
+        // Mobile: une colonne
+        let textSize = 13;
+        textOverlay.fill(0);
+        textOverlay.textSize(textSize);
+        textOverlay.textStyle(NORMAL);
+        textOverlay.textAlign(LEFT, TOP);
+        
+        // First paragraph
+        textOverlay.text(aboutMeContent.texts[currentLanguage] || aboutMeContent.texts['fr'], 
+            contentMargin, 140 + scrollOff, maxContentWidth, 400);
+        
+        // Second paragraph offset
+        let firstParaHeight = 200;
+        textOverlay.text(aboutMeContent.bios[currentLanguage] || aboutMeContent.bios['fr'], 
+            contentMargin, 140 + firstParaHeight + 20 + scrollOff, maxContentWidth, 400);
+    } else {
+        // Desktop: deux colonnes
+        let columnWidth = (maxContentWidth - 40) / 2;
+        let leftColumnX = contentMargin;
+        let rightColumnX = contentMargin + columnWidth + 40;
+        
+        // First paragraph - Left column
+        textOverlay.fill(0);
+        textOverlay.textSize(16);
+        textOverlay.textStyle(NORMAL);
+        textOverlay.textAlign(LEFT, TOP);
+        textOverlay.text(aboutMeContent.texts[currentLanguage] || aboutMeContent.texts['fr'], 
+            leftColumnX, 150 + scrollOff, columnWidth, 500);
+        
+        // Second paragraph - Right column
+        textOverlay.fill(0);
+        textOverlay.textSize(16);
+        textOverlay.textStyle(NORMAL);
+        textOverlay.textAlign(LEFT, TOP);
+        textOverlay.text(aboutMeContent.bios[currentLanguage] || aboutMeContent.bios['fr'], 
+            rightColumnX, 150 + scrollOff, columnWidth, 500);
+    }
     
     // Back button (fixed, does not scroll)
     textOverlay.fill(0);
-    textOverlay.textSize(32);
+    textOverlay.textSize(isMobile ? 24 : 32);
     textOverlay.textAlign(CENTER, CENTER);
     textOverlay.textStyle(NORMAL);
-    textOverlay.text('X', 45, 45);
+    textOverlay.text('X', contentMargin + (isMobile ? 15 : 20), contentMargin + (isMobile ? 15 : 20));
     
     // Display 2D overlay on top
     push();
@@ -1116,7 +1172,9 @@ function drawAboutMe() {
     pop();
     
     // Calculate total content height for scroll limits
-    let totalContentH = 90 + 60 + 200 + 400;
+    let totalContentH = isMobile ? 
+        60 + 400 + 20 + 200 :
+        90 + 60 + 200 + 400;
     detailMaxScroll = max(0, totalContentH - height);
 }
 
@@ -1147,10 +1205,16 @@ function mouseWheel(event) {
 }
 
 function mousePressed() {
+    // Adaptative margins for mobile/desktop
+    let contentMargin = isMobile ? 15 : 60;
+    let backBtnSize = isMobile ? 30 : 40;
+    let backBtnX = contentMargin;
+    let backBtnY = contentMargin;
+    
     // Check if in about me view
     if (viewMode === "about_me") {
         // Back button (top left)
-        if (mouseX > 20 && mouseX < 70 && mouseY > 20 && mouseY < 70) {
+        if (mouseX > backBtnX && mouseX < backBtnX + backBtnSize && mouseY > backBtnY && mouseY < backBtnY + backBtnSize) {
             viewMode = "carousel";
             detailScrollY = 0;
             detailTargetScrollY = 0;
@@ -1180,8 +1244,8 @@ function mousePressed() {
             expandedGalleryImg = null;
             return false;
         }
-        // Back button (top left) - using screen coordinates
-        if (mouseX > 20 && mouseX < 70 && mouseY > 20 && mouseY < 70) {
+        // Back button (top left) - using adaptive coordinates
+        if (mouseX > backBtnX && mouseX < backBtnX + backBtnSize && mouseY > backBtnY && mouseY < backBtnY + backBtnSize) {
             viewMode = "carousel";
             selectedImageIndex = null;
             detailScrollY = 0;
