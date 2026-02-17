@@ -401,31 +401,19 @@ function setup() {
         let w = windowWidth;
         let h = windowHeight;
         
-        // === FORCE 2D RENDERING ON iOS - WEBGL causes recursion errors on Safari ===
-        if (isIOS) {
-            // iOS: Use 2D canvas ONLY - WEBGL will crash with "recursive error"
-            createCanvas(w, h);
-            console.log('Created 2D canvas for iOS');
-        } else if (isMobile) {
-            // Android: Try WEBGL with fallback
-            try {
-                pixelDensity(1);
-                createCanvas(w, h, WEBGL);
-            } catch (e) {
-                console.warn('WEBGL failed, using 2D');
-                createCanvas(w, h);
-            }
-        } else {
-            // Desktop: Use WEBGL
+        // === Regular WEBGL for all platforms ===
+        // (Remove iOS 2D workaround - let it use WEBGL like Android/Desktop)
+        try {
             createCanvas(w, h, WEBGL);
+            console.log('Created WEBGL canvas');
+        } catch (e) {
+            console.warn('WEBGL failed, using 2D');
+            createCanvas(w, h);
         }
         
-        textOverlay = createGraphics(w, h); // 2D overlay for text
-        
-        // Sur iOS, appliquer les styles de prévention minimaux
-        if (isIOS) {
-            document.documentElement.style.overscrollBehavior = 'none';
-        }
+        textOverlay = createGraphics(windowWidth, windowHeight); // recreate overlay
+        // Recalculate radius to maintain fixed spacing and fit on screen
+        radius = (cardW + spacing) / (2 * sin(PI / cardsCount)) * 1.0;
     } catch (error) {
         hasFatalError = true;
         console.error('Fatal error in setup:', error);
@@ -562,24 +550,13 @@ function draw() {
     }
     
     try {
-        // iOS: Always use 2D rendering to avoid WEBGL bugs
-        if (isIOS) {
-            if (viewMode === "carousel") {
-                drawCarousel2D();
-            } else if (viewMode === "image_detail") {
-                drawImageDetail2D();
-            } else if (viewMode === "about_me") {
-                drawAboutMe2D();
-            }
-        } else {
-            // Desktop/Android: Use 3D rendering
-            if (viewMode === "carousel") {
-                drawCarousel();
-            } else if (viewMode === "image_detail") {
-                drawImageDetail();
-            } else if (viewMode === "about_me") {
-                drawAboutMe();
-            }
+        // Use 3D rendering for all platforms
+        if (viewMode === "carousel") {
+            drawCarousel();
+        } else if (viewMode === "image_detail") {
+            drawImageDetail();
+        } else if (viewMode === "about_me") {
+            drawAboutMe();
         }
     } catch (error) {
         console.error('Fatal error in draw:', error);
