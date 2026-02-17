@@ -1357,22 +1357,25 @@ function drawAboutMe() {
     textOverlay.noStroke();
     
     if (isMobile) {
-        // Mobile: single column with better spacing and font size - Fixed overlap issue
+        // Mobile: single column with dynamic height calculation to prevent overlap
         let textSize = 14;  // Good readability
         textOverlay.fill(0);
         textOverlay.textSize(textSize);
         textOverlay.textStyle(NORMAL);
         textOverlay.textAlign(LEFT, TOP);
         
-        // First paragraph with more generous space
-        textOverlay.text(aboutMeContent.texts[currentLanguage] || aboutMeContent.texts['fr'], 
-            contentMargin, 140 + scrollOff, maxContentWidth, 600);  // Increased max height container
+        // Calculate actual height of first paragraph
+        let firstParaText = aboutMeContent.texts[currentLanguage] || aboutMeContent.texts['fr'];
+        let firstParaHeight = calculateTextHeight(firstParaText, maxContentWidth, textSize, textOverlay);
         
-        // Second paragraph with larger gap to prevent overlap
-        let firstParaHeight = 360;  // Increased from 280 to prevent overlap
-        let gapBetweenParas = 50;   // Increased gap from 30 to 50
+        // First paragraph
+        textOverlay.text(firstParaText, contentMargin, 140 + scrollOff, maxContentWidth, 800);
+        
+        // Second paragraph with proper gap
+        let gapBetweenParas = 30;
+        let secondParaY = 140 + firstParaHeight + gapBetweenParas;
         textOverlay.text(aboutMeContent.bios[currentLanguage] || aboutMeContent.bios['fr'], 
-            contentMargin, 140 + firstParaHeight + gapBetweenParas + scrollOff, maxContentWidth, 600);
+            contentMargin, secondParaY + scrollOff, maxContentWidth, 800);
     } else {
         // Desktop: single column also (better layout)
         let textSize = 16;
@@ -1381,14 +1384,18 @@ function drawAboutMe() {
         textOverlay.textStyle(NORMAL);
         textOverlay.textAlign(LEFT, TOP);
         
-        // First paragraph
-        textOverlay.text(aboutMeContent.texts[currentLanguage] || aboutMeContent.texts['fr'], 
-            contentMargin, 150 + scrollOff, maxContentWidth, 500);
+        // Calculate actual height of first paragraph
+        let firstParaText = aboutMeContent.texts[currentLanguage] || aboutMeContent.texts['fr'];
+        let firstParaHeight = calculateTextHeight(firstParaText, maxContentWidth, textSize, textOverlay);
         
-        // Second paragraph offset
-        let firstParaHeight = 250;
+        // First paragraph
+        textOverlay.text(firstParaText, contentMargin, 150 + scrollOff, maxContentWidth, 800);
+        
+        // Second paragraph with proper gap
+        let gapBetweenParas = 20;
+        let secondParaY = 150 + firstParaHeight + gapBetweenParas;
         textOverlay.text(aboutMeContent.bios[currentLanguage] || aboutMeContent.bios['fr'], 
-            contentMargin, 150 + firstParaHeight + 20 + scrollOff, maxContentWidth, 500);
+            contentMargin, secondParaY + scrollOff, maxContentWidth, 800);
     }
     
     // Back button (fixed, does not scroll) - Larger on mobile for iOS accessibility
@@ -1408,7 +1415,16 @@ function drawAboutMe() {
     pop();
     
     // Calculate total content height for scroll limits - adjusted for mobile with proper spacing
-    let totalContentH = isMobile ? 1050 : 600;  // Increased for mobile to accommodate better spacing
+    // Calculate both paragraphs dynamically
+    let textSize = isMobile ? 14 : 16;
+    let firstParaText = aboutMeContent.texts[currentLanguage] || aboutMeContent.texts['fr'];
+    let secondParaText = aboutMeContent.bios[currentLanguage] || aboutMeContent.bios['fr'];
+    let firstParaHeight = calculateTextHeight(firstParaText, maxContentWidth, textSize, textOverlay);
+    let secondParaHeight = calculateTextHeight(secondParaText, maxContentWidth, textSize, textOverlay);
+    let gapBetweenParas = isMobile ? 30 : 20;
+    
+    // Total: title (60) + separator (50) + first para + gap + second para + back button + padding
+    let totalContentH = 60 + 50 + firstParaHeight + gapBetweenParas + secondParaHeight + 60;
     detailMaxScroll = max(0, totalContentH - height);
 }
 
@@ -1441,8 +1457,9 @@ function mouseWheel(event) {
         detailTargetScrollY -= event.delta * scrollSpeed;
         detailTargetScrollY = constrain(detailTargetScrollY, -detailMaxScroll, 0);
     } else {
-        // Scroll controls rotation
-        targetRot -= event.delta * 0.005;
+        // Scroll controls rotation - Reduced sensitivity on mobile
+        let rotSpeed = isMobile ? 0.002 : 0.005;
+        targetRot -= event.delta * rotSpeed;
     }
     return false;
 }
