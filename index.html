@@ -10,7 +10,7 @@
 <!-- Prevent MIME type sniffing -->
 <meta http-equiv="X-UA-Compatible" content="IE=edge">
 <!-- Content Security Policy - Balanced security for p5.js, p5.sound, and Web Workers (required for audio processing) -->
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' blob:; worker-src 'self' blob:; style-src 'self' 'unsafe-inline'; img-src 'self' data:; media-src 'self' blob:; font-src 'self'; connect-src 'self' https: blob:; frame-ancestors 'none';">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' blob:; worker-src 'self' blob:; style-src 'self' 'unsafe-inline'; img-src 'self' data:; media-src 'self' blob:; font-src 'self'; connect-src 'self' https: blob:;">
 <!-- Referrer Policy - Don't send referrer to external sites -->
 <meta name="referrer" content="strict-origin-when-cross-origin">
 <!-- Disable indexing -->
@@ -57,101 +57,9 @@
 <!-- Javascript -->
 <script type="text/javascript" src="js/p5.min.js"></script>
 <script type="text/javascript" src="js/p5.sound.min.js"></script>
-<script type="text/javascript" src="js/ios-2d-functions.js"></script>
-<script type="text/javascript" src="js/test3D.js"></script>
+<script type="text/javascript" src="js/test3D copy 3.js"></script>
 
 </head>
-<body>
-<!-- ========== SECURITY & iOS OPTIMIZATION SCRIPTS ========== -->
-<script>
-  'use strict'; // Enforce strict mode for better security
-  
-  // ===== HTTPS ENFORCEMENT (if behind proxy/CDN, this is automatic) =====
-  // Only enforce if explicitly needed on self-hosted domains
-  if (location.protocol !== 'https:' && location.hostname !== 'localhost' && location.hostname !== '127.0.0.1') {
-    // location.href = 'https:' + window.location.href.substring(window.location.protocol.length);
-  }
-  
-  // ===== ERROR HANDLING & LOGGING =====
-  window.addEventListener('error', function(event) {
-    console.error('Erreur globale:', event.error);
-    // Don't expose error details in production
-  });
-  
-  window.addEventListener('unhandledrejection', function(event) {
-    console.error('Promise rejetée non gérée:', event.reason);
-  });
-  
-  // ===== iOS ACCESSIBILITY & GESTURE HANDLING =====
-  let lastTouchEnd = 0;
-  let touchStartX = 0;
-  let touchStartY = 0;
-  
-  // Prevent double-tap zoom (but allow user-initiated pinch zoom)
-  document.addEventListener('touchend', function(event) {
-    lastTouchEnd = Date.now();
-  }, { passive: true });
-  
-  document.addEventListener('touchstart', function(event) {
-    touchStartX = event.touches[0].clientX;
-    touchStartY = event.touches[0].clientY;
-    
-    // Prevent double-tap zoom on iOS
-    if (Date.now() - lastTouchEnd <= 300) {
-      // event.preventDefault(); // Commented: Allow zoom functionality
-    }
-  }, { passive: false });
-  
-  // ===== VIEWPORT ORIENTATION HANDLING =====
-  window.addEventListener('orientationchange', function() {
-    setTimeout(function() {
-      // Recalculate canvas size after orientation change on iOS
-      window.dispatchEvent(new Event('resize'));
-    }, 200);
-  });
-  
-  // ===== iOS SAFARI AUDIO PERMISSION =====
-  // iOS requires user interaction to play audio with unmuted sound
-  // This app mutes all videos, so autoplay is allowed after user interaction
-  document.addEventListener('touchstart', function initAudio() {
-    // Audio context initialization if needed
-    document.removeEventListener('touchstart', initAudio);
-  }, { once: true });
-  
-  // ===== SECURITY: DISABLE CONTEXT MENU ON LONG PRESS (iOS) =====
-  // Protect against accidental image downloads or copying
-  document.addEventListener('contextmenu', function(e) {
-    // This prevents the context menu on right-click (desktop) and long-press (iOS)
-    // Uncomment if needed for security:
-    // e.preventDefault();
-    // return false;
-  });
-  
-  // ===== XSS PROTECTION: DISABLE EVAL AND SIMILAR =====
-  // This is done via CSP, but double-check at runtime
-  if (typeof eval !== 'undefined') {
-    // eval is already restricted by CSP
-  }
-  
-  // ===== iOS STORAGE QUOTA CHECK =====
-  if (navigator.storage && navigator.storage.estimate) {
-    navigator.storage.estimate().then(function(estimate) {
-      console.log('Storage quota:', estimate.quota, 'Usage:', estimate.usage);
-    }).catch(function(err) {
-      console.warn('Storage quota estimation failed:', err);
-    });
-  }
-  
-  // ===== PERFORMANCE MONITORING (Optional) =====
-  if (window.performance && window.performance.timing) {
-    window.addEventListener('load', function() {
-      // Measure performance
-      let perfData = window.performance.timing;
-      let pageLoadTime = perfData.loadEventEnd - perfData.navigationStart;
-      console.log('Page load time:', pageLoadTime, 'ms');
-    });
-  }
-</script>
-</body>
+
 </html>
 
