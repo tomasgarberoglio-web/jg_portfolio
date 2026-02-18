@@ -1432,6 +1432,9 @@ function drawImageDetail() {
 function drawAboutMe() {
     background(245);
     
+    // Smooth scroll - CRUCIAL: update scroll position
+    detailScrollY = lerp(detailScrollY, detailTargetScrollY, 0.12);
+    
     // Layout constants adaptatifs - Better for mobile
     let contentMargin = isMobile ? 18 : 80;
     let maxContentWidth = width - contentMargin * 2;
@@ -1452,7 +1455,8 @@ function drawAboutMe() {
     
     // Calculate total content height BEFORE rendering
     // Total: title (60) + separator (50) + first para + gap + second para + bottom padding
-    let totalContentH = 60 + 50 + firstParaHeight + gapBetweenParas + secondParaHeight + (isMobile ? 400 : 60);
+    // Huge bottom padding on mobile to ensure scrollable area
+    let totalContentH = 60 + 50 + firstParaHeight + gapBetweenParas + secondParaHeight + (isMobile ? 900 : 60);
     detailMaxScroll = max(0, totalContentH - height);
     
     // === ALL TEXT via 2D overlay ===
