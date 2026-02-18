@@ -1796,7 +1796,7 @@ document.addEventListener('touchmove', function(event) {
             
             // Swipe horizontal pour contrôler la rotation du carrousel
             if (viewMode === "carousel") {
-                targetRot += deltaX * 0.02;
+                targetRot += deltaX * 0.008; // Réduit de 0.02 à 0.008 pour moins de sensibilité
             }
             touchStartX = touchMoveX; // Mettre à jour pour le prochain mouvement
         }
