@@ -136,7 +136,7 @@ let imageDescriptions = [
             es: "Objeto de diseño funcional.\n En un mundo futuro donde la naturaleza se adapta al ser humano y su forma de vida. Una flor evoluciona en una lámpara de escritorio.\n Creación de una lámpara-flor, su embalaje e instrucciones de uso con un enfoque simple y tono humorístico.\n El embalaje de cartón reciclado presenta un diseño minimalista, al igual que el manual de instrucciones.",
             en: "Functional design object.\n In a future world where nature adapts to humans and their lifestyle. A flower evolves into a desk lamp.\n Creation of a flower-lamp, its packaging and instructions for use with a simple approach and humorous tone.\n The recycled cardboard packaging features a minimalist design, as does the instruction manual."
         },
-        gallery: ['flower.jpg', 'flower1.jpg', 'flower3.jpg', 'flower4.jpg'],
+        gallery: ['flower1.jpg', 'flower3.jpg', 'flower4.jpg'],
     },
     {
         titles: { fr: "hôtel de cabanes Dihan", es: "Hotel de cabañas Dihan", en: "Dihan treehouse hotel" },
@@ -1796,7 +1796,7 @@ document.addEventListener('touchmove', function(event) {
             
             // Swipe horizontal pour contrôler la rotation du carrousel
             if (viewMode === "carousel") {
-                targetRot += deltaX * 0.004; // Réduit de 0.02 à 0.008 pour moins de sensibilité
+                targetRot += deltaX * 0.002; // Réduit de 0.02 à 0.008 pour moins de sensibilité
             }
             touchStartX = touchMoveX; // Mettre à jour pour le prochain mouvement
         }
@@ -1851,4 +1851,5 @@ document.addEventListener('touchend', function(event) {
         hasSignificantMovement = false;
     }
 }, { passive: true });
+
 
