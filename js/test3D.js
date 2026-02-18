@@ -1437,6 +1437,24 @@ function drawAboutMe() {
     let maxContentWidth = width - contentMargin * 2;
     let scrollOff = detailScrollY;
     
+    // Calculate text parameters
+    let textSize = isMobile ? 14 : 16;
+    let gapBetweenParas = isMobile ? 30 : 20;
+    let firstParaText = aboutMeContent.texts[currentLanguage] || aboutMeContent.texts['fr'];
+    let secondParaText = aboutMeContent.bios[currentLanguage] || aboutMeContent.bios['fr'];
+    
+    // Measure text heights ONCE at beginning
+    textOverlay.textFont(cssFontName);
+    textOverlay.textSize(textSize);
+    textOverlay.textStyle(NORMAL);
+    let firstParaHeight = calculateTextHeight(firstParaText, maxContentWidth, textSize, textOverlay);
+    let secondParaHeight = calculateTextHeight(secondParaText, maxContentWidth, textSize, textOverlay);
+    
+    // Calculate total content height BEFORE rendering
+    // Total: title (60) + separator (50) + first para + gap + second para + bottom padding
+    let totalContentH = 60 + 50 + firstParaHeight + gapBetweenParas + secondParaHeight + (isMobile ? 400 : 60);
+    detailMaxScroll = max(0, totalContentH - height);
+    
     // === ALL TEXT via 2D overlay ===
     textOverlay.clear();
     textOverlay.textFont(cssFontName);
@@ -1455,47 +1473,19 @@ function drawAboutMe() {
     textOverlay.line(contentMargin, 110 + scrollOff, contentMargin + 150, 110 + scrollOff);
     textOverlay.noStroke();
     
-    if (isMobile) {
-        // Mobile: single column with dynamic height calculation to prevent overlap
-        let textSize = 14;  // Good readability
-        textOverlay.fill(0);
-        textOverlay.textSize(textSize);
-        textOverlay.textStyle(NORMAL);
-        textOverlay.textAlign(LEFT, TOP);
-        
-        // Calculate actual height of first paragraph
-        let firstParaText = aboutMeContent.texts[currentLanguage] || aboutMeContent.texts['fr'];
-        let firstParaHeight = calculateTextHeight(firstParaText, maxContentWidth, textSize, textOverlay);
-        
-        // First paragraph
-        textOverlay.text(firstParaText, contentMargin, 140 + scrollOff, maxContentWidth, 800);
-        
-        // Second paragraph with proper gap
-        let gapBetweenParas = 30;
-        let secondParaY = 140 + firstParaHeight + gapBetweenParas;
-        textOverlay.text(aboutMeContent.bios[currentLanguage] || aboutMeContent.bios['fr'], 
-            contentMargin, secondParaY + scrollOff, maxContentWidth, 800);
-    } else {
-        // Desktop: single column also (better layout)
-        let textSize = 16;
-        textOverlay.fill(0);
-        textOverlay.textSize(textSize);
-        textOverlay.textStyle(NORMAL);
-        textOverlay.textAlign(LEFT, TOP);
-        
-        // Calculate actual height of first paragraph
-        let firstParaText = aboutMeContent.texts[currentLanguage] || aboutMeContent.texts['fr'];
-        let firstParaHeight = calculateTextHeight(firstParaText, maxContentWidth, textSize, textOverlay);
-        
-        // First paragraph
-        textOverlay.text(firstParaText, contentMargin, 150 + scrollOff, maxContentWidth, 800);
-        
-        // Second paragraph with proper gap
-        let gapBetweenParas = 20;
-        let secondParaY = 150 + firstParaHeight + gapBetweenParas;
-        textOverlay.text(aboutMeContent.bios[currentLanguage] || aboutMeContent.bios['fr'], 
-            contentMargin, secondParaY + scrollOff, maxContentWidth, 800);
-    }
+    // Both paragraphs with consistent sizing
+    textOverlay.fill(0);
+    textOverlay.textSize(textSize);
+    textOverlay.textStyle(NORMAL);
+    textOverlay.textAlign(LEFT, TOP);
+    
+    // First paragraph position
+    let firstParaY = 140;
+    textOverlay.text(firstParaText, contentMargin, firstParaY + scrollOff, maxContentWidth, firstParaHeight + 20);
+    
+    // Second paragraph position
+    let secondParaY = firstParaY + firstParaHeight + gapBetweenParas;
+    textOverlay.text(secondParaText, contentMargin, secondParaY + scrollOff, maxContentWidth, secondParaHeight + 20);
     
     // Back button (fixed, does not scroll) - Larger on mobile for iOS accessibility
     textOverlay.fill(0);
@@ -1520,20 +1510,6 @@ function drawAboutMe() {
     noLights();
     image(textOverlay, -width/2, -height/2);
     pop();
-    
-    // Calculate total content height for scroll limits - adjusted for mobile with proper spacing
-    // Calculate both paragraphs dynamically
-    let textSize = isMobile ? 14 : 16;
-    let firstParaText = aboutMeContent.texts[currentLanguage] || aboutMeContent.texts['fr'];
-    let secondParaText = aboutMeContent.bios[currentLanguage] || aboutMeContent.bios['fr'];
-    let firstParaHeight = calculateTextHeight(firstParaText, maxContentWidth, textSize, textOverlay);
-    let secondParaHeight = calculateTextHeight(secondParaText, maxContentWidth, textSize, textOverlay);
-    let gapBetweenParas = isMobile ? 30 : 20;
-    
-    // Total: title (60) + separator (50) + first para + gap + second para + bottom padding
-    // Increased padding to ensure scrolling works on mobile - permet de scroller tout le contenu
-    let totalContentH = 60 + 50 + firstParaHeight + gapBetweenParas + secondParaHeight + (isMobile ? 400 : 60);
-    detailMaxScroll = max(0, totalContentH - height);
 }
 
 
