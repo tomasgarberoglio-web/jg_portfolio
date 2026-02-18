@@ -136,7 +136,7 @@ let imageDescriptions = [
             es: "Objeto de diseño funcional.\n En un mundo futuro donde la naturaleza se adapta al ser humano y su forma de vida. Una flor evoluciona en una lámpara de escritorio.\n Creación de una lámpara-flor, su embalaje e instrucciones de uso con un enfoque simple y tono humorístico.\n El embalaje de cartón reciclado presenta un diseño minimalista, al igual que el manual de instrucciones.",
             en: "Functional design object.\n In a future world where nature adapts to humans and their lifestyle. A flower evolves into a desk lamp.\n Creation of a flower-lamp, its packaging and instructions for use with a simple approach and humorous tone.\n The recycled cardboard packaging features a minimalist design, as does the instruction manual."
         },
-        gallery: ['flower1.jpg', 'flower3.jpg', 'flower4.jpg'],
+        gallery: ['flower.jpg', 'flower1.jpg', 'flower3.jpg', 'flower4.jpg'],
     },
     {
         titles: { fr: "hôtel de cabanes Dihan", es: "Hotel de cabañas Dihan", en: "Dihan treehouse hotel" },
@@ -698,80 +698,169 @@ function drawCarousel() {
     textOverlay.clear();
     textOverlay.textFont(cssFontName);
     
+    // ===== CONFIGURABLE SIZES =====
+    // Adjust these values to easily change signa and UI sizes
+    let signaHeightMobile = 25;   // Signa height for mobile
+    let signaHeightDesktop = 25;  // Signa height for desktop (EASY TO MODIFY)
+    
     // Adapter les tailles pour mobile
-    let sigH = isMobile ? 14 : 17.5;
-    
-    // Display signa image top-left
-    let sigW = sigH * (signaImg.width / signaImg.height);
-    let sigX = isMobile ? 10 : 20;
-    let sigY = isMobile ? 8 : 15;
-    textOverlay.image(signaImg, sigX, sigY, sigW, sigH);
-    
-    // Display "about me" text to the right of signa image
-    textOverlay.fill(0);
-    textOverlay.noStroke();
+    let sigH = isMobile ? signaHeightMobile : signaHeightDesktop;
     let uiFontSize = isMobile ? 11 : 10;  // Increased font size for better iOS readability
-    textOverlay.textSize(uiFontSize);
-    textOverlay.textAlign(LEFT, TOP);
-    let aboutMeText = getText('about_me');
-    let aboutMeX = sigX + sigW + (isMobile ? 8 : 15);
-    let aboutMeY = sigY + (sigH / 2) - (uiFontSize / 2);
-    textOverlay.text(aboutMeText, aboutMeX, aboutMeY);
-    // Store about me bounds for click detection - Larger touch targets on mobile (min 44px)
-    let aboutMeTw = textOverlay.textWidth(aboutMeText);
-    let aboutMeClickHeight = isMobile ? 48 : (uiFontSize + 4);  // 48px minimum for iOS
-    aboutMeBounds = { 
-        x: aboutMeX - 8, 
-        y: aboutMeY - 12, 
-        w: aboutMeTw + 16, 
-        h: aboutMeClickHeight, 
-        text: aboutMeText 
-    };
     
-    textOverlay.textSize(uiFontSize);
-    textOverlay.textAlign(CENTER, TOP);
-    let instagramText = getText('instagram');
-    let instagramY = isMobile ? 10 : 20;
-    textOverlay.text(instagramText, width/2, instagramY);
-    let instagramTw = textOverlay.textWidth(instagramText);
-    let instagramClickHeight = isMobile ? 48 : (uiFontSize + 4);  // 48px minimum for iOS
-    instagramBounds = { 
-        x: width/2 - instagramTw/2 - 8, 
-        y: instagramY - 12, 
-        w: instagramTw + 16, 
-        h: instagramClickHeight, 
-        text: instagramText, 
-        url: 'https://www.instagram.com/jg_sutdio' 
-    };
-    
-    textOverlay.textSize(uiFontSize);
-    textOverlay.textAlign(RIGHT, TOP);
-    let phoneText = isMobile ? '06.10.05.79.32' : '06.10.05.79.32';
-    let emailText = isMobile ? '📧 email' : 'jose.garberoglio.contact@gmail.com';
-    let rightMargin = isMobile ? 10 : 20;
-    textOverlay.text(phoneText, width - rightMargin, instagramY);
-    textOverlay.text(emailText, width - rightMargin, instagramY + (uiFontSize + 4));
-    
-    // Store contact bounds for click detection - Larger touch targets on mobile
-    let phoneTw = textOverlay.textWidth(phoneText);
-    let emailTw = textOverlay.textWidth(emailText);
-    let contactClickHeight = isMobile ? 48 : (uiFontSize + 4);  // 48px minimum for iOS
-    contactBounds = [
-        { 
+    if (isMobile) {
+        // MOBILE: Email, Instagram, Phone à droite en colonne + Signa + About me à gauche
+        let sigW = sigH * (signaImg.width / signaImg.height);
+        let sigX = 10;
+        let sigY = 8;
+        
+        // Display signa image
+        textOverlay.image(signaImg, sigX, sigY, sigW, sigH);
+        
+        // Display about me text
+        textOverlay.fill(0);
+        textOverlay.noStroke();
+        textOverlay.textSize(uiFontSize);
+        textOverlay.textAlign(LEFT, TOP);
+        let aboutMeText = getText('about_me');
+        let aboutMeX = sigX + sigW + 8;
+        let aboutMeY = 10;  // Align with email line (currentY starts at 10)
+        textOverlay.text(aboutMeText, aboutMeX, aboutMeY);
+        let aboutMeTw = textOverlay.textWidth(aboutMeText);
+        let aboutMeClickHeight = uiFontSize + 6;
+        aboutMeBounds = { 
+            x: aboutMeX - 8, 
+            y: aboutMeY, 
+            w: aboutMeTw + 16, 
+            h:  uiFontSize + 2, 
+            text: aboutMeText 
+        };
+        
+        // Contacts à droite
+        textOverlay.fill(0);
+        textOverlay.noStroke();
+        textOverlay.textSize(uiFontSize);
+        textOverlay.textAlign(RIGHT, TOP);
+        
+        let rightMargin = 10;
+        let currentY = 10;
+        let lineHeight = uiFontSize + 6;
+        
+        // Email (display @gmail, but store full email for copy)
+        let emailDisplayText = '@gmail';
+        let emailFullText = 'jose.garberoglio.contact@gmail.com';
+        textOverlay.text(emailDisplayText, width - rightMargin, currentY);
+        let emailTw = textOverlay.textWidth(emailDisplayText);
+        let contactClickHeight = uiFontSize + 2;
+        contactBounds = [
+            { 
+                x: width - rightMargin - emailTw - 8, 
+                y: currentY, 
+                w: emailTw + 16, 
+                h: contactClickHeight, 
+                text: emailFullText  // Store full email for copy action
+            }
+        ];
+        currentY += lineHeight;
+        
+        // Instagram
+        let instagramText = getText('instagram');
+        textOverlay.text(instagramText, width - rightMargin, currentY);
+        let instagramTw = textOverlay.textWidth(instagramText);
+        instagramBounds = { 
+            x: width - rightMargin - instagramTw - 8, 
+            y: currentY, 
+            w: instagramTw + 16, 
+            h: uiFontSize + 2, 
+            text: instagramText, 
+            url: 'https://www.instagram.com/jg_sutdio' 
+        };
+        currentY += lineHeight;
+        
+        // Phone
+        let phoneText = '06.10.05.79.32';
+        textOverlay.text(phoneText, width - rightMargin, currentY);
+        let phoneTw = textOverlay.textWidth(phoneText);
+        contactBounds.push({ 
             x: width - rightMargin - phoneTw - 8, 
-            y: instagramY - 12, 
+            y: currentY, 
             w: phoneTw + 16, 
-            h: contactClickHeight, 
-            text: '06.10.05.79.32' 
-        },
-        { 
-            x: width - rightMargin - emailTw - 8, 
-            y: instagramY + (uiFontSize + 4) - 12, 
-            w: emailTw + 16, 
-            h: contactClickHeight, 
-            text: 'jose.garberoglio.contact@gmail.com' 
-        }
-    ];
+            h: uiFontSize + 2, 
+            text: phoneText 
+        });
+        
+    } else {
+        // DESKTOP: Layout original
+        // Display signa image top-left
+        let sigW = sigH * (signaImg.width / signaImg.height);
+        let sigX = 20;
+        let sigY = 20;
+        textOverlay.image(signaImg, sigX, sigY, sigW, sigH);
+        
+        // Display "about me" text to the right of signa image
+        textOverlay.fill(0);
+        textOverlay.noStroke();
+        textOverlay.textSize(uiFontSize);
+        textOverlay.textAlign(LEFT, TOP);
+        let aboutMeText = getText('about_me');
+        let aboutMeX = sigX + sigW + 18;
+        let aboutMeY = 20;  // Align with Instagram line
+        textOverlay.text(aboutMeText, aboutMeX, aboutMeY);
+        // Store about me bounds for click detection - Larger touch targets on mobile (min 44px)
+        let aboutMeTw = textOverlay.textWidth(aboutMeText);
+        let aboutMeClickHeight = uiFontSize + 4;
+        aboutMeBounds = { 
+            x: aboutMeX - 8, 
+            y: aboutMeY, 
+            w: aboutMeTw + 16, 
+            h: uiFontSize + 2, 
+            text: aboutMeText 
+        };
+        
+        textOverlay.textSize(uiFontSize);
+        textOverlay.textAlign(CENTER, TOP);
+        let instagramText = getText('instagram');
+        let instagramY = 20;
+        textOverlay.text(instagramText, width/2, instagramY);
+        let instagramTw = textOverlay.textWidth(instagramText);
+        let instagramClickHeight = uiFontSize + 2;
+        instagramBounds = { 
+            x: width/2 - instagramTw/2 - 8, 
+            y: instagramY, 
+            w: instagramTw + 16, 
+            h: instagramClickHeight, 
+            text: instagramText, 
+            url: 'https://www.instagram.com/jg_sutdio' 
+        };
+        
+        textOverlay.textSize(uiFontSize);
+        textOverlay.textAlign(RIGHT, TOP);
+        let phoneText = '06.10.05.79.32';
+        let emailText = 'jose.garberoglio.contact@gmail.com';
+        let rightMargin = 20;
+        textOverlay.text(phoneText, width - rightMargin, instagramY);
+        textOverlay.text(emailText, width - rightMargin, instagramY + (uiFontSize + 4));
+        
+        // Store contact bounds for click detection
+        let phoneTw = textOverlay.textWidth(phoneText);
+        let emailTw = textOverlay.textWidth(emailText);
+        let contactClickHeight = uiFontSize + 2;
+        contactBounds = [
+            { 
+                x: width - rightMargin - phoneTw - 8, 
+                y: instagramY, 
+                w: phoneTw + 16, 
+                h: contactClickHeight, 
+                text: '06.10.05.79.32' 
+            },
+            { 
+                x: width - rightMargin - emailTw - 8, 
+                y: instagramY + (uiFontSize + 4), 
+                w: emailTw + 16, 
+                h: contactClickHeight, 
+                text: 'jose.garberoglio.contact@gmail.com' 
+            }
+        ];
+    }
     
     // Hand cursor on hover over contacts
     let overContact = false;
@@ -1277,7 +1366,17 @@ function drawImageDetail() {
     textOverlay.textAlign(CENTER, CENTER);
     textOverlay.textStyle(NORMAL);
     let backBtnSize = isMobile ? 50 : 40;  // Increased to 50px for iOS accessibility
-    textOverlay.text('X', contentMargin + backBtnSize/2, contentMargin + backBtnSize/2);
+    let detailBackX, detailBackY;
+    if (isMobile) {
+        // Mobile: align at beginning of text, middle top
+        detailBackX = 29;
+        detailBackY = 30;  // Middle between top and title
+    } else {
+        // Desktop: top-left corner
+        detailBackX = contentMargin + 16;
+        detailBackY = contentMargin -10;
+    }
+    textOverlay.text('X', detailBackX, detailBackY);
     
     // Display 2D overlay on top
     if (!expandedGalleryImg) {
@@ -1403,8 +1502,16 @@ function drawAboutMe() {
     textOverlay.textSize(isMobile ? 32 : 32);
     textOverlay.textAlign(CENTER, CENTER);
     textOverlay.textStyle(NORMAL);
-    let backX = contentMargin + (isMobile ? 22 : 20);
-    let backY = contentMargin + (isMobile ? 22 : 20);
+    let backX, backY;
+    if (isMobile) {
+        // Mobile: align at beginning of text (contentMargin), middle top area
+        backX = 34;
+        backY = 30;  // Middle between top (0) and title (60)
+    } else {
+        // Desktop: top-left corner
+        backX = 100;
+        backY = 35;
+    }
     textOverlay.text('X', backX, backY);
     
     // Display 2D overlay on top
@@ -1423,8 +1530,9 @@ function drawAboutMe() {
     let secondParaHeight = calculateTextHeight(secondParaText, maxContentWidth, textSize, textOverlay);
     let gapBetweenParas = isMobile ? 30 : 20;
     
-    // Total: title (60) + separator (50) + first para + gap + second para + back button + padding
-    let totalContentH = 60 + 50 + firstParaHeight + gapBetweenParas + secondParaHeight + 60;
+    // Total: title (60) + separator (50) + first para + gap + second para + bottom padding
+    // Increased padding to ensure scrolling works on mobile - permet de scroller tout le contenu
+    let totalContentH = 60 + 50 + firstParaHeight + gapBetweenParas + secondParaHeight + (isMobile ? 400 : 60);
     detailMaxScroll = max(0, totalContentH - height);
 }
 
@@ -1468,8 +1576,30 @@ function mousePressed() {
     // Adaptative margins for mobile/desktop with iOS-compliant touch target sizing
     let contentMargin = isMobile ? 18 : 60;
     let backBtnSize = isMobile ? 50 : 40;  // Minimum 44px for iOS/Android + padding
-    let backBtnX = contentMargin;
-    let backBtnY = contentMargin;
+    
+    // Calculate back button position for image detail
+    let detailBackX, detailBackY;
+    if (isMobile) {
+        // Mobile: align at beginning of text, middle top
+        detailBackX = contentMargin;
+        detailBackY = 30;  // Middle between top and title
+    } else {
+        // Desktop: top-left corner
+        detailBackX = contentMargin;
+        detailBackY = contentMargin;
+    }
+    
+    // Calculate back button position for about me - Same positions as drawAboutMe()
+    let aboutMeBackX, aboutMeBackY;
+    if (isMobile) {
+        // Mobile: align at beginning of text, middle top area
+        aboutMeBackX = 34;
+        aboutMeBackY = 30;  // Middle between top (0) and title (60)
+    } else {
+        // Desktop: top-left corner
+        aboutMeBackX = 100;
+        aboutMeBackY = 35;
+    }
     
     // ===== CAROUSEL VIEW =====
     if (viewMode === "carousel") {
@@ -1538,9 +1668,10 @@ function mousePressed() {
     
     // ===== ABOUT ME VIEW =====
     if (viewMode === "about_me") {
-        // Back button (top left) - Larger touch target on mobile
-        if (mouseX > backBtnX - 12 && mouseX < backBtnX + backBtnSize + 12 && 
-            mouseY > backBtnY - 12 && mouseY < backBtnY + backBtnSize + 12) {
+        // Back button (top left) - Larger clickable area for mobile accessibility
+        let btnClickPadding = 35;  // Padding around the center point
+        if (mouseX > aboutMeBackX - btnClickPadding && mouseX < aboutMeBackX + btnClickPadding && 
+            mouseY > aboutMeBackY - btnClickPadding && mouseY < aboutMeBackY + btnClickPadding) {
             viewMode = "carousel";
             detailScrollY = 0;
             detailTargetScrollY = 0;
@@ -1574,9 +1705,10 @@ function mousePressed() {
             return false;
         }
         
-        // Back button (top left)
-        if (mouseX > backBtnX - 12 && mouseX < backBtnX + backBtnSize + 12 && 
-            mouseY > backBtnY - 12 && mouseY < backBtnY + backBtnSize + 12) {
+        // Back button (top left) - Symmetric square centered on button position
+        let btnClickPadding = 25;  // Padding around the center point
+        if (mouseX > detailBackX - btnClickPadding && mouseX < detailBackX + btnClickPadding && 
+            mouseY > detailBackY - btnClickPadding && mouseY < detailBackY + btnClickPadding) {
             viewMode = "carousel";
             selectedImageIndex = null;
             detailScrollY = 0;
@@ -1674,7 +1806,7 @@ document.addEventListener('touchmove', function(event) {
             
             // Scroll vertical sur les pages de détail
             if (viewMode === "image_detail" || viewMode === "about_me") {
-                detailTargetScrollY += deltaY * 1.5; // Sensibilité augmentée pour mobile
+                detailTargetScrollY += deltaY * 2.5; // Sensibilité fortement augmentée pour mobile
                 detailTargetScrollY = constrain(detailTargetScrollY, -detailMaxScroll, 0);
                 touchStartY = touchMoveY; // Mettre à jour pour le prochain mouvement
             }
@@ -1739,4 +1871,3 @@ document.addEventListener('touchend', function(event) {
         hasSignificantMovement = false;
     }
 }, { passive: true });
-
