@@ -136,7 +136,7 @@ let imageDescriptions = [
             es: "Objeto de diseño funcional.\n En un mundo futuro donde la naturaleza se adapta al ser humano y su forma de vida. Una flor evoluciona en una lámpara de escritorio.\n Creación de una lámpara-flor, su embalaje e instrucciones de uso con un enfoque simple y tono humorístico.\n El embalaje de cartón reciclado presenta un diseño minimalista, al igual que el manual de instrucciones.",
             en: "Functional design object.\n In a future world where nature adapts to humans and their lifestyle. A flower evolves into a desk lamp.\n Creation of a flower-lamp, its packaging and instructions for use with a simple approach and humorous tone.\n The recycled cardboard packaging features a minimalist design, as does the instruction manual."
         },
-        gallery: ['flower1.jpg', 'flower3.jpg', 'flower4.jpg'],
+        gallery: ['flower.jpg', 'flower1.jpg', 'flower3.jpg', 'flower4.jpg'],
     },
     {
         titles: { fr: "hôtel de cabanes Dihan", es: "Hotel de cabañas Dihan", en: "Dihan treehouse hotel" },
@@ -299,6 +299,25 @@ let touchStartY = 0;
 let touchStartTime = 0;
 let isTouchDragging = false;
 let hasSignificantMovement = false;
+
+// Function to measure and wrap text if needed, returns adjusted fontSize and wrapped text if necessary
+function adaptTextToWidth(text, maxWidth, baseSize, graphics) {
+    if (!graphics) return { fontSize: baseSize, wrappedText: text };
+    
+    graphics.textSize(baseSize);
+    let textW = graphics.textWidth(text);
+    
+    // If text fits, return as is
+    if (textW <= maxWidth) {
+        return { fontSize: baseSize, wrappedText: text };
+    }
+    
+    // If text is too wide, reduce font size proportionally
+    let scaleFactor = maxWidth / textW;
+    let newSize = baseSize * scaleFactor * 0.95; // 0.95 for safety margin
+    
+    return { fontSize: newSize, wrappedText: text };
+}
 
 function isVideo(filename) {
     let lower = filename.toLowerCase();
@@ -1279,13 +1298,16 @@ function drawImageDetail() {
         let textWidth = width - contentMargin * 2;
         let titleY = contentMargin + scrollOff + 50; // Décaler titre pour éviter chevauchement avec X
         
-        // Title
+        // Title - adapt fontSize if text is too long
         textOverlay.fill(0);
         textOverlay.noStroke();
-        textOverlay.textSize(18);
         textOverlay.textStyle(BOLD);
         textOverlay.textAlign(LEFT, TOP);
-        textOverlay.text(getImageTitle(selectedImageIndex), textAreaX, titleY);
+        
+        let titleText = getImageTitle(selectedImageIndex);
+        let titleAdapt = adaptTextToWidth(titleText, textWidth, 18, textOverlay);
+        textOverlay.textSize(titleAdapt.fontSize);
+        textOverlay.text(titleAdapt.wrappedText, textAreaX, titleY);
         
         // Description text (after image)
         let textY = titleY + 50 + mainImgH + 20;
@@ -1796,7 +1818,7 @@ document.addEventListener('touchmove', function(event) {
             
             // Swipe horizontal pour contrôler la rotation du carrousel
             if (viewMode === "carousel") {
-                targetRot += deltaX * 0.002; // Réduit de 0.02 à 0.008 pour moins de sensibilité
+                targetRot += deltaX * 0.004; // Réduit à 0.004 pour une sensibilité très basse
             }
             touchStartX = touchMoveX; // Mettre à jour pour le prochain mouvement
         }
@@ -1851,5 +1873,3 @@ document.addEventListener('touchend', function(event) {
         hasSignificantMovement = false;
     }
 }, { passive: true });
-
-
